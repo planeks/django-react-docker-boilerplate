@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="">
+    <meta name="description" content="">
+    <title>{{ settings.SITE_NAME }}</title>
+
+    <meta property="og:title" content="" />
+    <meta property="og:description" content="" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="" />
+    <meta name="twitter:image" content="" />
+
+    <!-- Favicons -->
+    <link rel="apple-touch-icon" sizes="180x180" href="">
+    <link rel="icon" type="image/png" sizes="32x32" href="">
+    <link rel="icon" type="image/png" sizes="16x16" href="">
+    <link rel="manifest" href="">
+    <link rel="mask-icon" href="" color="">
+    <link rel="shortcut icon" href="">
+    <meta name="msapplication-TileColor" content="">
+    <meta name="msapplication-config" content="">
+    <meta name="theme-color" content="">
+
+
+    {% if settings.DEBUG %}
+      {# https://vite.dev/guide/backend-integration #}
+      {# Dont change the order #}
+      <script type="module">
+        import RefreshRuntime from 'http://localhost:5173/@react-refresh'
+        RefreshRuntime.injectIntoGlobalHook(window)
+        window.$RefreshReg$ = () => {}
+        window.$RefreshSig$ = () => (type) => type
+        window.__vite_plugin_react_preamble_installed__ = true
+      </script>
+      <script type="module" src="http://localhost:5173/@vite/client"></script>
+      <script type="module" src="http://localhost:5173/src/index.jsx"></script>
+    {% else %}
+      {% load vite_tags %}
+      {% vite_asset 'src/index.jsx' %}
+    {% endif %}
+  </head>
+
+  <body>
+    <div id="app-root">
+      <!-- React will load here -->
+    </div>
+  </body>
+</html>
