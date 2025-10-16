@@ -1,4 +1,4 @@
-FROM node:18-bullseye-slim
+FROM node:20-bullseye-slim
 
 # Set working directory inside container
 WORKDIR /opt/project/src/frontend

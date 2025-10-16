@@ -61,6 +61,17 @@ services:
     volumes:
       - ./docs:/code/docs
       - docs:/code/doc_site
+  frontend:
+    build:
+      context: .
+      dockerfile: ./docker/frontend/Dockerfile
+    image: "${COMPOSE_PROJECT_NAME}_prod_frontend"
+    volumes:
+      - ./src/frontend:/opt/project/src/frontend:cached
+      - /opt/project/src/frontend/node_modules
+      - static:/opt/project/src/frontend/dist
+    profiles:
+      - build
   caddy:
     build:
       context: .

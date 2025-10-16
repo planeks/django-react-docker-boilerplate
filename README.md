@@ -379,8 +379,8 @@ contain the correct domain name. Also, you need to change the `SITE_DOMAIN` valu
 Now you can run the containers:
 
 ```bash
-$ docker compose -f docker-compose.prod.yml build
-$ docker compose -f docker-compose.prod.yml up -d
+$ docker compose -f compose.prod.yml build
+$ docker compose -f compose.prod.yml up -d
 ```
 
 ## Backup script
@@ -415,13 +415,13 @@ The `backup.sh` script should contain the next code:
 #!/bin/bash
 TIME_SUFFIX=`date +%Y-%m-%d:%H:%M:%S`
 cd /home/webprod/projects/newprojectname
-docker compose -f docker-compose.prod.yml exec -T postgres backup
-DB_DUMP_NAME=`docker compose -f docker-compose.prod.yml exec -T postgres backups | head -n 3 | tail -n 1 | tr -s ' ' '\n' | tail -1`
+docker compose -f compose.prod.yml exec -T postgres backup
+DB_DUMP_NAME=`docker compose -f compose.prod.yml exec -T postgres backups | head -n 3 | tail -n 1 | tr -s ' ' '\n' | tail -1`
 docker cp newprojectname_postgres_1:/backups/$DB_DUMP_NAME /home/webprod/backups/
 tar --exclude='media/thumbs' -zcvf /home/webprod/backups/newprojectname-$TIME_SUFFIX.tar.gz /home/webprod/projects/newprojectname/data/prod/media /home/webprod/projects/newprojectname/.env /home/webprod/projects/newprojectname/src /home/webprod/backups/$DB_DUMP_NAME
 s3cmd put /home/webprod/backups/newprojectname-$TIME_SUFFIX.tar.gz s3://newprojectname-backups/staging/
 find /home/webprod/backups/*.gz -mtime +5 -exec rm {} \;
-docker compose -f docker-compose.prod.yml exec -T postgres cleanup 7
+docker compose -f compose.prod.yml exec -T postgres cleanup 7
 ```
 
 📌 Modify the script according to the project needs. Check the directories and file names.
@@ -455,19 +455,19 @@ $ docker cp <dump_name> newprojectname_postgres_1:/backups/
 Stop the app containers that are using the database (`django`, `celeryworker`, etc.)
 
 ```bash
-$ docker compose -f docker-compose.prod.yml stop django celeryworker
+$ docker compose -f compose.prod.yml stop django celeryworker
 ``` 
 
 Restore the database:
 
 ```bash
-$ docker compose -f docker-compose.prod.yml exec -T postgres restore <dump_name>
+$ docker compose -f compose.prod.yml exec -T postgres restore <dump_name>
 ```
 
 Run the app containers again:
 
 ```bash
-$ docker compose -f docker-compose.prod.yml up -d django celeryworker
+$ docker compose -f compose.prod.yml up -d django celeryworker
 ```
 
 ## Cleaning Docker data
