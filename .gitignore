@@ -9,6 +9,7 @@ __pycache__
 *.sublime-project
 *.sublime-workspace
 /data/*
+/frontend/dist/*
 !/data/.gitkeep
 !/media/.gitkeep
 /scripts
