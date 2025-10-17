@@ -42,6 +42,10 @@ COPY --chown=appuser:appuser ./src/pyproject.toml ./src/poetry.lock /opt/project
 RUN mkdir -p /opt/project/src
 RUN chown -R appuser:appuser /opt/project
 
+# Ensure .pytest_cache with correct permissions
+RUN mkdir -p /opt/project/src/.pytest_cache && \
+    chown -R appuser:appuser /opt/project/src/.pytest_cache
+
 # Switch to non-root user for Poetry operations
 USER appuser
 
