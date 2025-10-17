@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 
 
 export default defineConfig(({ command }) => ({
-  const host = import.meta.env.VITE_DEV_SERVER_HOST || 'localhost';
+  const host = process.env.VITE_DEV_SERVER_HOST || 'localhost';
 
   plugins: [react()],
 
