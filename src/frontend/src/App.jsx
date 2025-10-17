@@ -16,7 +16,7 @@ function App() {
       }}>
         <div style={{ textAlign: 'center' }}>
           <h1>
-            <FontAwesomeIcon icon={faRocket} /> Hello World!
+            <FontAwesomeIcon icon={faRocket} /> Hello Dev World!
           </h1>
           <p>React + Vite + Django + Sentry + FontAwesome is working!</p>
 
