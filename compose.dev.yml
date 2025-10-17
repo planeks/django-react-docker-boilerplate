@@ -106,22 +106,23 @@ services:
       - VITE_SENTRY_DSN=${SENTRY_DSN}
     depends_on:
       - django
-# Uncomment if you need Caddy locally
-#  caddy:
-#    build:
-#      context: .
-#      dockerfile: ./docker/caddy/Dockerfile
-#    image: "${COMPOSE_PROJECT_NAME}_dev_caddy"
-#    ports:
-#      - "80:80"
-#      - "443:443"
-#    volumes:
-#      - dev_caddy:/data
-#    env_file:
-#      - ./.env
-#    depends_on:
-#      - django
-#      - flower
+  # Run with `--profile dev` if you need Caddy locally
+  caddy:
+    profiles: ["dev"]
+    build:
+      context: .
+      dockerfile: ./docker/caddy/Dockerfile
+    image: "${COMPOSE_PROJECT_NAME}_dev_caddy"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - dev_caddy:/data
+    env_file:
+      - ./.env
+    depends_on:
+      - django
+      - flower
 
 volumes:
   dev_redis:
