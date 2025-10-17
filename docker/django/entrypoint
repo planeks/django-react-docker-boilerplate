@@ -118,6 +118,9 @@ case "$1" in
             exec poetry run watchgod celery.__main__.main --args -A config "${@:2}"
         fi
     ;;
+    test)
+        exec poetry run pytest "$@"
+    ;;
     *)
         show_help
         exit 1

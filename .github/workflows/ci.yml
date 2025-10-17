@@ -23,7 +23,7 @@ jobs:
       run: docker compose -f compose.dev.yml build
 
     - name: Run Django tests
-      run: docker compose -f compose.dev.yml run --rm django poetry run pytest
+      run: docker compose -f compose.dev.yml run --rm django test
 
     - name: Cleanup
       if: always()
