@@ -7,7 +7,7 @@ the README.md file with name of the project.
 
 📌 Delete this section after creating new project.
 
-Download the last version of the boiler plate from the repository: https://github.com/planeks/django-rest-docker-boilerplate
+Download the last version of the boiler plate from the repository: https://github.com/planeks/django-react-docker-boilerplate
 
 You can download the ZIP archive and unpack it to the directory, or clone the repository (but do not forget to clean the Git history in that case).
 
@@ -104,6 +104,7 @@ You need to edit `Dockerfile`, `entrypoint` and `compose.dev.yml` files if you n
 Use the following command to build the containers:
 
 ```shell
+$ newgrp docker
 $ docker compose -f compose.dev.yml build
 ```
 
@@ -194,18 +195,18 @@ We strongly recommend deploying the project with an unprivileged user instead of
 
 > The next paragraph describes how to create new unprivileged users to the system. If you use AWS EC2 for example, it is possible that you already have such kind of user in your system by default. It can be named `ubuntu`. If such a user already exists you do not need to create another one.
 
-You can create the user (for example `webprod`) with the following command:
+You can create the user (for example `appuser`) with the following command:
 
 ```shell
-$ adduser webprod
+$ adduser appuser
 ```
 
 You will be asked for the password for the user. You can use [https://www.random.org/passwords/](https://www.random.org/passwords/) to generate new passwords.
 
-Add the new user `webprod` to the `sudo` group:
+Add the new user `appuser` to the `sudo` group:
 
 ```bash
-$ usermod -aG sudo webprod
+$ usermod -aG sudo appuser
 ```
 
 Now the user can run a command with superuser privileges if it is necessary.
@@ -230,7 +231,7 @@ $ cat ~/.ssh/id_rsa.pub
 Now, go to the server and temporarily switch to the new user:
 
 ```bash
-$ su - webprod
+$ su - appuser
 ```
 
 Now you will be in your new user's home directory.
@@ -266,10 +267,10 @@ $ exit
 
 Now your public key is installed, and you can use SSH keys to log in as your user.
 
-Type `exit` again to logout from `the` server console and try to log in again as `webprod` and test the key based login:
+Type `exit` again to logout from `the` server console and try to log in again as `appuser` and test the key based login:
 
 ```bash
-$ ssh webprod@XXX.XXX.XXX.XXX
+$ ssh appuser@XXX.XXX.XXX.XXX
 ```
 
 If you added public key authentication to your user, as described above, your private key will be used as authentication. Otherwise, you will be prompted for your user's password.
@@ -290,6 +291,12 @@ $ sudo apt install -y git wget tmux htop mc nano build-essential
 
 🐳 Install Docker and Docker Compose as it was described above.
 
+And add your user to the group:
+
+```bash
+$ sudo usermod -aG docker "$USER"
+```
+
 Create a new group on the host machine with `gid 1024` . It will be important for allowing to setup correct non-root permissions to the volumes.
 
 ```bash
@@ -302,6 +309,7 @@ And add your user to the group:
 
 ```bash
 $ sudo usermod -aG django ${USER}
+$ newgrp django
 ```
 
 ### Generate deploy key
@@ -315,7 +323,7 @@ Show the public key:
 
     $ cat ~/.ssh/id_rsa.pub
 
-Then go to the project's settings of your project on source code hosting (if you use Bitbucket than go to "Access keys" section, if GitHub than search "Deployment keys" section) and add the key there.
+Then go to the project's settings of your project on source code hosting (if you use Bitbucket than go to "Access keys" section, if GitHub than search "Deploy keys" section) and add the key there.
 
 > It is a list of keys which allows the read-only access to the repository. It is very important that such kind of keys does not affect our user quota. Also, it allows doing not use the keys of our developers.
 
@@ -386,12 +394,12 @@ $ docker compose -f compose.prod.yml up -d
 ## Backup script
 
 Configure the backup script to make regular backups of the database. You can call it `backup.sh` and put it to 
-the `/home/webprod` directory.
+the `/home/appuser` directory.
 
 Create the directory for backups:
 
 ```bash
-$ mkdir /home/webprod/backups
+$ mkdir /home/appuser/backups
 ```
 
 The idea is to make a database dump, add the project files including the `.env` file and `media` directory to the archive.
@@ -414,13 +422,13 @@ The `backup.sh` script should contain the next code:
 ```bash
 #!/bin/bash
 TIME_SUFFIX=`date +%Y-%m-%d:%H:%M:%S`
-cd /home/webprod/projects/newprojectname
+cd /home/appuser/projects/newprojectname
 docker compose -f compose.prod.yml exec -T postgres backup
 DB_DUMP_NAME=`docker compose -f compose.prod.yml exec -T postgres backups | head -n 3 | tail -n 1 | tr -s ' ' '\n' | tail -1`
-docker cp newprojectname_postgres_1:/backups/$DB_DUMP_NAME /home/webprod/backups/
-tar --exclude='media/thumbs' -zcvf /home/webprod/backups/newprojectname-$TIME_SUFFIX.tar.gz /home/webprod/projects/newprojectname/data/prod/media /home/webprod/projects/newprojectname/.env /home/webprod/projects/newprojectname/src /home/webprod/backups/$DB_DUMP_NAME
-s3cmd put /home/webprod/backups/newprojectname-$TIME_SUFFIX.tar.gz s3://newprojectname-backups/staging/
-find /home/webprod/backups/*.gz -mtime +5 -exec rm {} \;
+docker cp newprojectname_postgres_1:/backups/$DB_DUMP_NAME /home/appuser/backups/
+tar --exclude='media/thumbs' -zcvf /home/appuser/backups/newprojectname-$TIME_SUFFIX.tar.gz /home/appuser/projects/newprojectname/data/prod/media /home/appuser/projects/newprojectname/.env /home/appuser/projects/newprojectname/src /home/appuser/backups/$DB_DUMP_NAME
+s3cmd put /home/appuser/backups/newprojectname-$TIME_SUFFIX.tar.gz s3://newprojectname-backups/staging/
+find /home/appuser/backups/*.gz -mtime +5 -exec rm {} \;
 docker compose -f compose.prod.yml exec -T postgres cleanup 7
 ```
 
@@ -435,7 +443,7 @@ $ sudo crontab -e
 Add the next line
 
 ```bash
-0 1 * * *       /home/webprod/backup.sh >> /home/webprod/backup.log 2>&1
+0 1 * * *       /home/appuser/backup.sh >> /home/appuser/backup.log 2>&1
 ```
 
 ## Restore project from backup
@@ -481,7 +489,7 @@ $ sudo crontab -e
 Add the next lines
 
 ```bash
-0 2 * * *       docker system prune -f >> /home/webprod/docker_prune.log 2>&1
+0 2 * * *       docker system prune -f >> /home/appuser/docker_prune.log 2>&1
 ```
 
 📌 If this document does not contain some important information, please, add it.

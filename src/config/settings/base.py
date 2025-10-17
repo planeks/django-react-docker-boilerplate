@@ -100,7 +100,6 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                "core.context_processors.settings_vars"
             ],
         },
     },
@@ -227,3 +226,5 @@ SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
+
+VITE_DEV_SERVER_HOST = os.environ.get('VITE_DEV_SERVER_HOST', 'localhost')
