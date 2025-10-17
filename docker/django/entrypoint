@@ -119,6 +119,7 @@ case "$1" in
         fi
     ;;
     test)
+        export DJANGO_SETTINGS_MODULE=config.settings.test
         exec poetry run pytest
     ;;
     *)
