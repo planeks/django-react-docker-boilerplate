@@ -119,7 +119,7 @@ case "$1" in
         fi
     ;;
     test)
-        exec poetry run pytest "$@"
+        exec poetry run pytest
     ;;
     *)
         show_help

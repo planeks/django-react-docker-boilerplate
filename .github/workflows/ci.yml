@@ -23,6 +23,13 @@ jobs:
       run: docker compose -f compose.dev.yml build
 
     - name: Run Django tests
+      run: |
+        docker compose -f compose.dev.yml run --rm django bash -c "
+          mkdir -p /opt/project/src/.pytest_cache && \
+          chmod 777 /opt/project/src/.pytest_cache
+        "
+
+    - name: Run Django tests
       run: docker compose -f compose.dev.yml run --rm django test
 
     - name: Cleanup
