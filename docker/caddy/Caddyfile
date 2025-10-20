@@ -1,0 +1,37 @@
+
+{$SITE_DOMAIN} {
+    @api path /api/* /admin/*
+	@docs path /api/schema/ /api/swagger-ui/
+	handle @api {
+		basic_auth @docs {
+			appuser {$CADDY_PASSWORD}
+		}
+		reverse_proxy django:8000
+	}
+
+    # Serve Vite assets
+    handle /static/assets/* {
+        uri strip_prefix /static
+        root * /vite-dist
+        file_server
+    }
+
+    # Serve Django static files
+    handle /static/* {
+        root * /static
+        file_server
+    }
+
+    # Serve media files
+    handle /media/* {
+        root * /media
+        file_server
+    }
+
+    reverse_proxy /flower/* flower:5555
+    reverse_proxy /* django:8000
+}
+
+# www.{$SITE_DOMAIN} {
+#    redir https://{$SITE_DOMAIN}{uri}
+# }
