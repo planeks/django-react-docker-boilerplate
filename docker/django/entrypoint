@@ -79,6 +79,7 @@ run_setup_commands(){
 case "$1" in
     dev)
         wait_for_postgres
+        poetry run python manage.py migrate
         exec poetry run python manage.py runserver 0.0.0.0:"${PORT}"
     ;;
     prod)
