@@ -218,9 +218,9 @@ Project already contains following directory structure:
 .github/workflows/
 ├── ci.yml                    # CI tests for backend and frontend
 ├── deploy-reusable.yml       # Reusable deployment workflow
-├── deploy-dev.yml            # Development deployment
-├── deploy-staging.yml        # Staging deployment
-└── deploy-prod.yml           # Production deployment
+├── dev_deploy.yml            # Development deployment
+├── staging_deploy.yml        # Staging deployment
+└── production_deploy.yml     # Production deployment
 ```
 
 ## 2. Set Up Environments
