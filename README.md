@@ -1,4 +1,4 @@
-# Django Rest Docker Boilerplate by PLANEKS
+# Django React Docker Boilerplate by PLANEKS
 
 📌 Insert here the project description. Also, change the caption of
 the README.md file with name of the project.
