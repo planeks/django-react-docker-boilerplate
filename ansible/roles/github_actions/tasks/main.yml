@@ -1,0 +1,77 @@
+---
+- name: Ensure GitHub Actions can deploy to this server
+  block:
+    - name: Check if GitHub Actions SSH key is provided
+      assert:
+        that:
+          - github_actions_ssh_key is defined or lookup('env', 'GITHUB_ACTIONS_SSH_KEY') | length > 0
+        fail_msg: "GitHub Actions SSH key not provided. Set github_actions_ssh_key variable or GITHUB_ACTIONS_SSH_KEY env var"
+      when: setup_github_actions | default(true)
+
+    - name: Set GitHub Actions SSH key from environment if not set
+      set_fact:
+        github_actions_ssh_key: "{{ lookup('env', 'GITHUB_ACTIONS_SSH_KEY') }}"
+      when:
+        - github_actions_ssh_key is not defined
+        - lookup('env', 'GITHUB_ACTIONS_SSH_KEY') | length > 0
+
+    - name: Add GitHub Actions SSH public key to app user authorized_keys
+      authorized_key:
+        user: "{{ app_user }}"
+        key: "{{ github_actions_ssh_key }}"
+        state: present
+        comment: "GitHub Actions deployment key"
+      when: github_actions_ssh_key is defined
+
+    - name: Add GitHub Actions SSH public key to ansible user authorized_keys
+      authorized_key:
+        user: "{{ ansible_user }}"
+        key: "{{ github_actions_ssh_key }}"
+        state: present
+        comment: "GitHub Actions deployment key"
+      when: github_actions_ssh_key is defined
+
+    - name: Create .env template for application
+      template:
+        src: env.template.j2
+        dest: "{{ app_dir }}/.env.template"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0644'
+      when: create_env_template | default(true)
+
+    - name: Check if .env file exists
+      stat:
+        path: "{{ app_dir }}/.env"
+      register: env_file_check
+
+    - name: Create .env file from template if it doesn't exist
+      copy:
+        src: "{{ app_dir }}/.env.template"
+        dest: "{{ app_dir }}/.env"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0600'
+        remote_src: yes
+      when:
+        - not env_file_check.stat.exists
+        - create_env_template | default(true)
+
+    - name: Display GitHub Actions setup information
+      debug:
+        msg: |
+          ========================================
+          GitHub Actions Setup Complete
+          ========================================
+          - SSH key added for user: {{ app_user }}
+          - SSH key added for user: {{ ansible_user }}
+          - Application directory: {{ app_dir }}
+          - .env template created: {{ app_dir }}/.env.template
+
+          Next steps for GitHub Actions:
+          1. Add server IP to GitHub Secrets as PROD_HOST (or DEV_HOST/STAGING_HOST)
+          2. Add the corresponding private key to GitHub Secrets
+          3. Ensure .env file is populated with actual values
+          4. Run your GitHub Actions deployment workflow
+          ========================================
+      when: github_actions_ssh_key is defined

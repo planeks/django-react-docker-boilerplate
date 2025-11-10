@@ -1,0 +1,13 @@
+cloud_provider: aws
+backup_storage: s3
+backup_bucket: "{{ project_name }}-backups"
+reserved_ip_enabled: true
+ssl_cert_method: acm
+monitoring_agent: cloudwatch
+
+# AWS Configuration
+aws_region: "{{ lookup('env', 'AWS_REGION') | default('us-east-1') }}"
+configure_security_group: true
+
+# GitHub Actions
+setup_github_actions: true

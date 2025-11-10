@@ -1,0 +1,261 @@
+---
+- name: Disaster recovery - restore from backup
+  hosts: all
+  become: yes
+
+  vars:
+    backup_timestamp: "{{ backup_timestamp | default(lookup('env', 'BACKUP_TIMESTAMP')) }}"
+    dr_target_minutes: 30
+    docker_compose_file: "{{ 'compose.dev.yml' if deploy_env == 'development' else 'compose.prod.yml' }}"
+
+  pre_tasks:
+    - name: Validate DR prerequisites
+      assert:
+        that:
+          - backup_timestamp is defined
+          - backup_timestamp | length > 0
+          - backup_bucket is defined
+          - app_dir is defined
+        fail_msg: "Missing required variables for disaster recovery"
+
+    - name: Display DR information
+      debug:
+        msg: |
+          ========================================
+          DISASTER RECOVERY INITIATED
+          ========================================
+          Backup timestamp: {{ backup_timestamp }}
+          Cloud provider: {{ cloud_provider }}
+          Target: {{ dr_target_minutes }} minutes
+          ========================================
+
+  tasks:
+    - name: Record DR start time
+      set_fact:
+        dr_start_time: "{{ ansible_date_time.epoch }}"
+
+    - name: Create temporary directory for backups
+      file:
+        path: /tmp/dr-restore
+        state: directory
+        mode: '0755'
+
+    - name: Download database backup (AWS)
+      amazon.aws.s3_object:
+        bucket: "{{ backup_bucket }}"
+        object: "backups/backup_{{ backup_timestamp }}.sql.gz"
+        dest: "/tmp/dr-restore/backup_{{ backup_timestamp }}.sql.gz"
+        mode: get
+      when: cloud_provider == 'aws'
+      register: aws_db_download
+
+    - name: Download database backup (DigitalOcean Spaces)
+      command: >
+        s3cmd get s3://{{ backup_bucket }}/backups/backup_{{ backup_timestamp }}.sql.gz
+        /tmp/dr-restore/backup_{{ backup_timestamp }}.sql.gz
+        --access_key={{ do_spaces_key }}
+        --secret_key={{ do_spaces_secret }}
+        --host={{ do_spaces_region }}.digitaloceanspaces.com
+        --host-bucket='%(bucket)s.{{ do_spaces_region }}.digitaloceanspaces.com'
+      when: cloud_provider == 'digitalocean' and do_spaces_key is defined
+      register: do_db_download
+
+    - name: Verify database backup was downloaded
+      stat:
+        path: "/tmp/dr-restore/backup_{{ backup_timestamp }}.sql.gz"
+      register: db_backup_file
+      failed_when: not db_backup_file.stat.exists
+
+    - name: Get backup file size
+      debug:
+        msg: "Database backup size: {{ (db_backup_file.stat.size / 1024 / 1024) | round(2) }} MB"
+
+    - name: Ensure application containers are running
+      command: docker compose -f {{ docker_compose_file }} up -d
+      args:
+        chdir: "{{ app_dir }}"
+      register: start_result
+      failed_when: false
+
+    - name: Wait for database to be ready
+      command: >
+        docker compose -f {{ docker_compose_file }} exec -T postgres
+        pg_isready -U {{ db_user }}
+      args:
+        chdir: "{{ app_dir }}"
+      register: pg_ready
+      retries: 10
+      delay: 3
+      until: pg_ready.rc == 0
+
+    - name: Create safety backup before restore
+      command: docker compose -f {{ docker_compose_file }} exec -T postgres backup
+      args:
+        chdir: "{{ app_dir }}"
+      when: create_safety_backup | default(true)
+      failed_when: false
+      register: safety_backup
+
+    - name: Copy downloaded backup into postgres container
+      command: >
+        docker compose -f {{ docker_compose_file }} cp
+        /tmp/dr-restore/backup_{{ backup_timestamp }}.sql.gz
+        postgres:/backups/backup_{{ backup_timestamp }}.sql.gz
+      args:
+        chdir: "{{ app_dir }}"
+      register: copy_backup
+
+    - name: Restore database using postgres container's restore script
+      command: >
+        docker compose -f {{ docker_compose_file }} exec -T postgres
+        restore backup_{{ backup_timestamp }}.sql.gz
+      args:
+        chdir: "{{ app_dir }}"
+      register: db_restore
+
+    - name: Verify database restore
+      command: >
+        docker compose -f {{ docker_compose_file }} exec -T postgres
+        psql -U {{ db_user }} {{ db_name }}
+        -c "SELECT COUNT(*) FROM pg_tables WHERE schemaname='public';"
+      args:
+        chdir: "{{ app_dir }}"
+      register: table_count
+
+    - name: Display database restore status
+      debug:
+        msg: "Database restored successfully. Restore output: {{ db_restore.stdout }}"
+
+    - name: Download media files backup (AWS)
+      amazon.aws.s3_sync:
+        bucket: "{{ backup_bucket }}"
+        file_root: "{{ app_dir }}/media/"
+        key_prefix: "media-{{ backup_timestamp }}/"
+        mode: pull
+      when: cloud_provider == 'aws' and restore_media | default(true)
+
+    - name: Download media files backup (DigitalOcean)
+      synchronize:
+        src: "s3://{{ backup_bucket }}/media-{{ backup_timestamp }}/"
+        dest: "{{ app_dir }}/media/"
+        mode: pull
+      when: cloud_provider == 'digitalocean' and restore_media | default(true)
+
+    - name: Set correct permissions on media files
+      file:
+        path: "{{ app_dir }}/media"
+        owner: "{{ app_user }}"
+        group: django
+        recurse: yes
+      when: restore_media | default(true)
+
+    - name: Start all application containers
+      command: docker compose -f {{ docker_compose_file }} up -d
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Wait for application to be ready
+      pause:
+        seconds: 15
+
+    - name: Run Django system checks
+      command: docker compose -f {{ docker_compose_file }} exec -T django python manage.py check
+      args:
+        chdir: "{{ app_dir }}"
+      register: django_check
+
+    - name: Verify application health endpoint
+      uri:
+        url: "{{ health_check_url | default('http://localhost:8000/admin/') }}"
+        status_code: [200, 301, 302]
+        timeout: 30
+      retries: 10
+      delay: 5
+      register: health_check
+
+    - name: Test database connectivity through application
+      command: >
+        docker compose -f {{ docker_compose_file }} exec -T django
+        python manage.py showmigrations
+      args:
+        chdir: "{{ app_dir }}"
+      register: migrations_check
+
+    - name: Calculate DR completion time
+      set_fact:
+        dr_duration: "{{ (ansible_date_time.epoch | int) - (dr_start_time | int) }}"
+        dr_duration_minutes: "{{ ((ansible_date_time.epoch | int) - (dr_start_time | int)) / 60 }}"
+
+    - name: Generate DR report
+      set_fact:
+        dr_report:
+          success: "{{ health_check.status in [200, 301, 302] }}"
+          duration_seconds: "{{ dr_duration }}"
+          duration_minutes: "{{ dr_duration_minutes | round(2) }}"
+          target_met: "{{ (dr_duration | int) <= (dr_target_minutes * 60) }}"
+          backup_timestamp: "{{ backup_timestamp }}"
+          database_restored: true
+          media_restored: "{{ restore_media | default(true) }}"
+          health_check_status: "{{ health_check.status }}"
+
+    - name: Save DR report to file
+      copy:
+        content: |
+          ========================================
+          DISASTER RECOVERY REPORT
+          ========================================
+          Date: {{ ansible_date_time.iso8601 }}
+          Backup Timestamp: {{ backup_timestamp }}
+          Environment: {{ deploy_env | default('production') }}
+
+          RESULTS:
+          --------
+          Status: {{ 'SUCCESS' if dr_report.success else 'FAILED' }}
+          Duration: {{ dr_report.duration_minutes }} minutes ({{ dr_report.duration_seconds }} seconds)
+          Target: {{ dr_target_minutes }} minutes
+          Target Met: {{ 'YES' if dr_report.target_met else 'NO' }}
+
+          COMPONENTS:
+          -----------
+          Database Restored: {{ 'YES' if dr_report.database_restored else 'NO' }}
+          Media Files Restored: {{ 'YES' if dr_report.media_restored else 'NO' }}
+          Health Check: {{ dr_report.health_check_status }}
+
+          DETAILS:
+          --------
+          Server: {{ inventory_hostname }}
+          Cloud Provider: {{ cloud_provider }}
+
+          ========================================
+        dest: "/tmp/dr-report-{{ ansible_date_time.epoch }}.txt"
+
+    - name: Display DR summary
+      debug:
+        msg: |
+          ========================================
+          DISASTER RECOVERY {{ 'COMPLETED SUCCESSFULLY' if dr_report.success else 'FAILED' }}
+          ========================================
+          Duration: {{ dr_report.duration_minutes }} minutes
+          Target: {{ dr_target_minutes }} minutes
+          Status: {{ 'WITHIN TARGET' if dr_report.target_met else 'EXCEEDED TARGET' }}
+          Health Check: {{ 'PASSED' if dr_report.success else 'FAILED' }}
+          ========================================
+
+  post_tasks:
+    - name: Cleanup temporary files
+      file:
+        path: /tmp/dr-restore
+        state: absent
+      when: cleanup_temp_files | default(true)
+
+    - name: Fail if DR exceeded target time
+      fail:
+        msg: "DR exceeded {{ dr_target_minutes }}-minute target: {{ dr_report.duration_minutes }} minutes"
+      when:
+        - not dr_report.target_met
+        - enforce_target | default(false)
+
+    - name: Fail if health check failed
+      fail:
+        msg: "Application health check failed after restore"
+      when: not dr_report.success

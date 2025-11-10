@@ -12,7 +12,6 @@ __pycache__
 /frontend/dist/*
 !/data/.gitkeep
 !/media/.gitkeep
-/scripts
 /tmp
 .coverage
 /.idea

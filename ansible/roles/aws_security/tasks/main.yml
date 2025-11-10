@@ -1,0 +1,105 @@
+---
+- name: Configure AWS Security Group for web server
+  block:
+    - name: Get instance metadata
+      uri:
+        url: http://169.254.169.254/latest/meta-data/instance-id
+        return_content: yes
+        timeout: 5
+      register: instance_id_response
+      failed_when: false
+      changed_when: false
+
+    - name: Set instance ID fact
+      set_fact:
+        ec2_instance_id: "{{ instance_id_response.content }}"
+      when: instance_id_response.status == 200
+
+    - name: Get security group ID
+      command: >
+        aws ec2 describe-instances
+        --instance-ids {{ ec2_instance_id }}
+        --query 'Reservations[0].Instances[0].SecurityGroups[0].GroupId'
+        --output text
+        --region {{ aws_region }}
+      register: security_group_result
+      delegate_to: localhost
+      changed_when: false
+      when: ec2_instance_id is defined
+
+    - name: Set security group ID
+      set_fact:
+        ec2_security_group_id: "{{ security_group_result.stdout }}"
+      when: security_group_result.stdout is defined
+
+    - name: Ensure SSH port 22 is open
+      amazon.aws.ec2_security_group:
+        name: "{{ ec2_security_group_id }}"
+        description: "Security group for {{ project_name }}"
+        region: "{{ aws_region }}"
+        rules:
+          - proto: tcp
+            ports: 22
+            cidr_ip: 0.0.0.0/0
+            rule_desc: "SSH access"
+        rules_egress:
+          - proto: all
+            cidr_ip: 0.0.0.0/0
+      delegate_to: localhost
+      when:
+        - ec2_security_group_id is defined
+        - configure_security_group | default(true)
+
+    - name: Ensure HTTP port 80 is open
+      amazon.aws.ec2_security_group:
+        name: "{{ ec2_security_group_id }}"
+        description: "Security group for {{ project_name }}"
+        region: "{{ aws_region }}"
+        rules:
+          - proto: tcp
+            ports: 80
+            cidr_ip: 0.0.0.0/0
+            rule_desc: "HTTP access"
+        rules_egress:
+          - proto: all
+            cidr_ip: 0.0.0.0/0
+      delegate_to: localhost
+      when:
+        - ec2_security_group_id is defined
+        - configure_security_group | default(true)
+
+    - name: Ensure HTTPS port 443 is open
+      amazon.aws.ec2_security_group:
+        name: "{{ ec2_security_group_id }}"
+        description: "Security group for {{ project_name }}"
+        region: "{{ aws_region }}"
+        rules:
+          - proto: tcp
+            ports: 443
+            cidr_ip: 0.0.0.0/0
+            rule_desc: "HTTPS access"
+        rules_egress:
+          - proto: all
+            cidr_ip: 0.0.0.0/0
+      delegate_to: localhost
+      when:
+        - ec2_security_group_id is defined
+        - configure_security_group | default(true)
+
+    - name: Display security group configuration
+      debug:
+        msg: |
+          ========================================
+          AWS Security Group Configuration
+          ========================================
+          Instance ID: {{ ec2_instance_id | default('N/A') }}
+          Security Group: {{ ec2_security_group_id | default('N/A') }}
+
+          Ports Configured:
+          - 22  (SSH)   ✓
+          - 80  (HTTP)  ✓
+          - 443 (HTTPS) ✓
+          ========================================
+      when: ec2_instance_id is defined
+
+  when: cloud_provider == 'aws'

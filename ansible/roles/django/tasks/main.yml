@@ -1,0 +1,49 @@
+---
+- name: Clone Django repository
+  git:
+    repo: "{{ git_repo_url }}"
+    dest: "{{ app_dir }}"
+    version: "{{ git_branch | default('main') }}"
+  become_user: "{{ app_user }}"
+
+- name: Copy environment file
+  template:
+    src: .env.j2
+    dest: "{{ app_dir }}/.env"
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: '0600'
+
+- name: Copy docker-compose configuration
+  template:
+    src: docker-compose.prod.yml.j2
+    dest: "{{ app_dir }}/docker-compose.yml"
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+
+- name: Build and start Docker containers
+  community.docker.docker_compose:
+    project_src: "{{ app_dir }}"
+    state: present
+    pull: yes
+  become_user: "{{ app_user }}"
+
+- name: Run Django migrations
+  community.docker.docker_container_exec:
+    container: "{{ project_name }}_web"
+    command: python manage.py migrate --noinput
+
+- name: Collect static files
+  community.docker.docker_container_exec:
+    container: "{{ project_name }}_web"
+    command: python manage.py collectstatic --noinput
+
+- name: Create superuser (if needed)
+  community.docker.docker_container_exec:
+    container: "{{ project_name }}_web"
+    command: python manage.py createsuperuser --noinput
+  environment:
+    DJANGO_SUPERUSER_USERNAME: "{{ django_admin_user }}"
+    DJANGO_SUPERUSER_PASSWORD: "{{ django_admin_password }}"
+    DJANGO_SUPERUSER_EMAIL: "{{ django_admin_email }}"
+  ignore_errors: yes

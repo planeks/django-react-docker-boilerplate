@@ -1,0 +1,105 @@
+---
+- name: Deploy Django application
+  hosts: all
+  become: yes
+  become_user: "{{ app_user }}"
+
+  vars:
+    docker_compose_file: "{{ 'compose.dev.yml' if deploy_env == 'development' else 'compose.prod.yml' }}"
+
+  pre_tasks:
+    - name: Display deployment information
+      debug:
+        msg: |
+          Starting Django application deployment
+          Environment: {{ deploy_env }}
+          Project: {{ project_name }}
+          Repository: {{ git_repo_url }}
+          Branch: {{ git_branch | default('main') }}
+
+  tasks:
+    - name: Pull latest code from repository
+      git:
+        repo: "{{ git_repo_url }}"
+        dest: "{{ app_dir }}"
+        version: "{{ git_branch | default('main') }}"
+        force: yes
+      register: git_result
+
+    - name: Display git changes
+      debug:
+        msg: "Updated to commit: {{ git_result.after }}"
+      when: git_result.changed
+
+    - name: Ensure .env file exists
+      stat:
+        path: "{{ app_dir }}/.env"
+      register: env_file
+
+    - name: Fail if .env file doesn't exist
+      fail:
+        msg: ".env file not found. Please create it before deploying."
+      when: not env_file.stat.exists
+
+    - name: Build Docker images
+      command: docker compose -f {{ docker_compose_file }} build
+      args:
+        chdir: "{{ app_dir }}"
+      when: build_images | default(true)
+
+    - name: Start containers
+      command: docker compose -f {{ docker_compose_file }} up -d
+      args:
+        chdir: "{{ app_dir }}"
+      register: docker_output
+
+    - name: Wait for containers to be ready
+      pause:
+        seconds: 10
+
+    - name: Run database migrations
+      command: docker compose -f {{ docker_compose_file }} exec -T django python manage.py migrate --noinput
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Collect static files
+      command: docker compose -f {{ docker_compose_file }} exec -T django python manage.py collectstatic --noinput
+      args:
+        chdir: "{{ app_dir }}"
+      when: deploy_env == 'production' or deploy_env == 'staging'
+
+    - name: Check application health
+      uri:
+        url: "{{ health_check_url | default('http://localhost:8000/admin/') }}"
+        status_code: [200, 301, 302]
+        timeout: 30
+      retries: 5
+      delay: 5
+      register: health_check
+      failed_when: false
+
+    - name: Display deployment status
+      debug:
+        msg: |
+          ========================================
+          Deployment {{ 'SUCCESSFUL' if health_check.status in [200, 301, 302] else 'FAILED' }}
+          ========================================
+          Environment: {{ deploy_env }}
+          Commit: {{ git_result.after[:8] }}
+          Health Check: {{ 'PASSED' if health_check.status in [200, 301, 302] else 'FAILED' }}
+          ========================================
+
+  post_tasks:
+    - name: Clean up old Docker images
+      command: docker image prune -f
+      when: cleanup_images | default(true)
+
+    - name: Display container status
+      command: docker compose -f {{ docker_compose_file }} ps
+      args:
+        chdir: "{{ app_dir }}"
+      register: container_status
+
+    - name: Show running containers
+      debug:
+        var: container_status.stdout_lines

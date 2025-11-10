@@ -1,0 +1,54 @@
+ansible_user: appuser
+ansible_python_interpreter: /usr/bin/python3
+
+# Project Configuration
+project_name: django_app
+app_user: "{{ ansible_user }}"  # Use the ansible user (ubuntu/appuser)
+app_dir: /home/{{ app_user }}/projects/{{ project_name }}
+venv_dir: "{{ app_dir }}/src/.venv"
+
+# Domain and SSL
+domain_name: "{{ lookup('env', 'DOMAIN_NAME') }}"
+ssl_email: "{{ lookup('env', 'SSL_EMAIL') | default('superadmin@' + domain_name) }}"
+ssl_provider: letsencrypt
+
+# Database Configuration
+db_name: "{{ project_name }}_db"
+db_user: "{{ project_name }}_user"
+db_password: "{{ lookup('env', 'DB_PASSWORD') }}"
+
+# Git Repository
+git_repo_url: "{{ lookup('env', 'GIT_REPO_URL') }}"
+git_branch: "{{ lookup('env', 'GIT_BRANCH') | default('main') }}"
+
+# Monitoring Configuration
+enable_monitoring: true
+node_exporter_version: "1.6.1"
+promtail_version: "2.9.0"
+install_node_exporter: true
+install_promtail: false
+
+# Backup Configuration
+backup_bucket: "{{ project_name }}-backups-{{ cloud_provider }}"
+backup_retention_days: 30
+
+# Health Check
+health_check_url: "http://localhost:8000/"
+
+# Django Admin (for initial setup)
+django_admin_user: "{{ lookup('env', 'DJANGO_ADMIN_USER') | default('superadmin') }}"
+django_admin_password: "{{ lookup('env', 'DJANGO_ADMIN_PASSWORD') }}"
+django_admin_email: "{{ lookup('env', 'DJANGO_ADMIN_EMAIL') | default('superadmin@' + domain_name) }}"
+
+# Deployment Options
+deploy_app: true  # Set to false if you dont want to deploy app during provisioning
+build_images: true
+cleanup_images: true
+auto_reboot: false
+
+# Disaster Recovery
+dr_target_minutes: 30
+restore_media: true
+create_safety_backup: true
+enforce_target: false
+cleanup_temp_files: true

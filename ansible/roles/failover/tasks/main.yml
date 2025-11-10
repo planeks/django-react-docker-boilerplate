@@ -1,0 +1,123 @@
+---
+- name: Configure failover IP (DigitalOcean)
+  block:
+    - name: Check if failover IP is assigned
+      uri:
+        url: "https://api.digitalocean.com/v2/floating_ips/{{ failover_ip }}"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ digitalocean_token }}"
+        status_code: [200, 404]
+      register: floating_ip_status
+      delegate_to: localhost
+      when: failover_ip is defined
+
+    - name: Assign failover IP to droplet
+      uri:
+        url: "https://api.digitalocean.com/v2/floating_ips/{{ failover_ip }}/actions"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ digitalocean_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          type: "assign"
+          droplet_id: "{{ droplet_id }}"
+        status_code: 201
+      delegate_to: localhost
+      when:
+        - failover_ip is defined
+        - floating_ip_status.status == 200
+
+    - name: Configure DNS for failover IP
+      uri:
+        url: "https://api.digitalocean.com/v2/domains/{{ domain_name }}/records"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ digitalocean_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          type: "A"
+          name: "{{ dns_record_name | default('@') }}"
+          data: "{{ failover_ip }}"
+          ttl: 300
+        status_code: [201, 422]
+      delegate_to: localhost
+      when:
+        - failover_ip is defined
+        - configure_dns | default(false)
+  when: cloud_provider == 'digitalocean'
+
+- name: Configure Elastic IP (AWS)
+  block:
+    - name: Check if Elastic IP exists
+      command: >
+        aws ec2 describe-addresses
+        --filters "Name=public-ip,Values={{ failover_ip }}"
+        --region {{ aws_region }}
+      register: eip_status
+      delegate_to: localhost
+      changed_when: false
+      when: failover_ip is defined
+
+    - name: Associate Elastic IP
+      command: >
+        aws ec2 associate-address
+        --instance-id {{ instance_id }}
+        --public-ip {{ failover_ip }}
+        --region {{ aws_region }}
+      delegate_to: localhost
+      when:
+        - failover_ip is defined
+        - eip_status.stdout | from_json | json_query('Addresses[0].AssociationId') is none
+
+    - name: Update Route53 DNS record
+      route53:
+        state: present
+        zone: "{{ route53_zone }}"
+        record: "{{ domain_name }}"
+        type: A
+        ttl: 300
+        value: "{{ failover_ip }}"
+        wait: yes
+      delegate_to: localhost
+      when:
+        - failover_ip is defined
+        - configure_dns | default(false)
+        - route53_zone is defined
+  when: cloud_provider == 'aws'
+
+- name: Configure network interface for failover IP
+  template:
+    src: failover-interface.j2
+    dest: /etc/network/interfaces.d/60-floating-ip.cfg
+  notify: restart networking
+  when:
+    - failover_ip is defined
+    - configure_local_interface | default(true)
+
+- name: Ensure failover IP is configured on system
+  command: ip addr add {{ failover_ip }}/32 dev eth0
+  when:
+    - failover_ip is defined
+    - configure_local_interface | default(true)
+  changed_when: false
+  failed_when: false
+
+- name: Install keepalived for HA (optional)
+  apt:
+    name: keepalived
+    state: present
+  when:
+    - enable_keepalived | default(false)
+    - failover_ip is defined
+
+- name: Configure keepalived
+  template:
+    src: keepalived.conf.j2
+    dest: /etc/keepalived/keepalived.conf
+  when:
+    - enable_keepalived | default(false)
+    - failover_ip is defined
+  notify: restart keepalived

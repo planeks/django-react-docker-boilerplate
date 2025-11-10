@@ -1,0 +1,74 @@
+name: Provision AWS Django Server
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - production
+
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Ansible and dependencies
+        run: |
+          pip install ansible boto3 botocore
+
+      - name: Install Ansible collections
+        run: |
+          ansible-galaxy collection install amazon.aws community.docker
+
+      - name: Create SSH key file
+        run: |
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/ssh_key
+          chmod 600 /tmp/ssh_key
+
+      - name: Run Ansible provisioning playbook
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: 'False'
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          DOMAIN_NAME: ${{ secrets.DOMAIN_NAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+        run: |
+          cd ansible
+          ansible-playbook -i inventory/aws.yml \
+            --private-key /tmp/ssh_key \
+            -e "deploy_env=${{ github.event.inputs.environment }}" \
+            -e "git_repo_url=${{ github.server_url }}/${{ github.repository }}" \
+            -e "git_branch=${{ github.ref_name }}" \
+            playbooks/provision.yml
+
+      - name: Deploy Django application
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: 'False'
+        run: |
+          cd ansible
+          ansible-playbook -i inventory/aws.yml \
+            --private-key /tmp/ssh_key \
+            -e "deploy_env=${{ github.event.inputs.environment }}" \
+            playbooks/deploy-django.yml

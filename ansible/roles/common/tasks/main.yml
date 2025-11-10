@@ -1,0 +1,69 @@
+---
+- name: Install essential packages
+  apt:
+    name:
+      - curl
+      - git
+      - ufw
+      - fail2ban
+      - unattended-upgrades
+    state: present
+
+- name: Configure SSH hardening
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  loop:
+    - { regexp: '^PasswordAuthentication', line: 'PasswordAuthentication no' }
+    - { regexp: '^X11Forwarding', line: 'X11Forwarding no' }
+  notify: restart sshd
+
+- name: Configure UFW firewall
+  ufw:
+    rule: "{{ item.rule }}"
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+  loop:
+    - { rule: 'allow', port: '22', proto: 'tcp' }
+    - { rule: 'allow', port: '80', proto: 'tcp' }
+    - { rule: 'allow', port: '443', proto: 'tcp' }
+
+- name: Enable UFW
+  ufw:
+    state: enabled
+    policy: deny
+
+- name: Configure fail2ban
+  copy:
+    src: jail.local
+    dest: /etc/fail2ban/jail.local
+  notify: restart fail2ban
+
+- name: Create projects directory
+  file:
+    path: "/home/{{ app_user }}/projects"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+  mode: '0755'
+
+- name: Create backups directory
+  file:
+    path: "/home/{{ app_user }}/backups"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: '0755'
+
+- name: Add django group (GID 1024) for Docker volumes
+  group:
+    name: django
+    gid: 1024
+    state: present
+
+- name: Add app user to django group
+  user:
+    name: "{{ app_user }}"
+    groups: django
+    append: yes
