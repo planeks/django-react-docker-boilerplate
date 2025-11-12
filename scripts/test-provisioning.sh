@@ -2,15 +2,14 @@
 # Test Provisioning Script
 # Validates that a freshly provisioned server meets all requirements
 
-set -e
-
-SERVER_IP=${1}
+CLOUD_PROVIDER=${1:-aws}
 ENVIRONMENT=${2:-production}
-CLOUD_PROVIDER=${3:-aws}
+SERVER_IP=${3}
+SERVER_USER=${4:root}
 
 if [ -z "$SERVER_IP" ]; then
-    echo "Usage: $0 <server_ip> [environment] [cloud_provider]"
-    echo "Example: $0 192.168.1.100 production aws"
+    echo "Usage: $0 [cloud_provider] [environment] <server_ip>  [server_user]"
+    echo "Example: $0 aws production 192.168.1.100 root"
     exit 1
 fi
 
@@ -38,7 +37,7 @@ run_test() {
 
     echo -e "\n[Testing] $test_name..."
 
-    if ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no ubuntu@$SERVER_IP "$command" > /dev/null 2>&1; then
+    if ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP "$command" > /dev/null 2>&1; then
         echo -e "${GREEN}✓ PASS${NC}: $test_name"
         ((TESTS_PASSED++))
         return 0

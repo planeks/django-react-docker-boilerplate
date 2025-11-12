@@ -46,7 +46,7 @@
     state: directory
     owner: "{{ app_user }}"
     group: "{{ app_user }}"
-  mode: '0755'
+    mode: '0755'
 
 - name: Create backups directory
   file:

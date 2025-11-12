@@ -1,4 +1,4 @@
-ansible_user: appuser
+ansible_user: "{{ lookup('env', 'ANSIBLE_REMOTE_USER') | default('appuser') }}"
 ansible_python_interpreter: /usr/bin/python3
 
 # Project Configuration
