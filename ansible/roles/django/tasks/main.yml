@@ -6,27 +6,82 @@
     version: "{{ git_branch | default('main') }}"
   become_user: "{{ app_user }}"
 
-- name: Copy environment file
+- name: Initialize production volumes
+  block:
+    - name: Create data/dev directory
+      file:
+        path: "{{ app_dir }}/data/dev"
+        state: directory
+        owner: "{{ app_user }}"
+        group: django
+        mode: '0775'
+
+    - name: Set SGID bit on data/dev directory
+      file:
+        path: "{{ app_dir }}/data/dev"
+        state: directory
+        mode: g+s
+
+    - name: Create data/prod directory
+      file:
+        path: "{{ app_dir }}/data/prod"
+        state: directory
+        owner: "{{ app_user }}"
+        group: django
+        mode: '0775'
+
+    - name: Set SGID bit on data/prod directory
+      file:
+        path: "{{ app_dir }}/data/prod"
+        state: directory
+        mode: g+s
+  tags: [volumes]
+
+- name: Check if .env file already exists
+  stat:
+    path: "{{ app_dir }}/.env"
+  register: env_file_stat
+
+- name: Create environment file from template
   template:
     src: .env.j2
     dest: "{{ app_dir }}/.env"
     owner: "{{ app_user }}"
     group: "{{ app_user }}"
     mode: '0600'
+  when: not env_file_stat.stat.exists or force_env_update | default(false)
 
-- name: Copy docker-compose configuration
-  template:
-    src: docker-compose.prod.yml.j2
-    dest: "{{ app_dir }}/docker-compose.yml"
-    owner: "{{ app_user }}"
-    group: "{{ app_user }}"
+- name: Display environment file status
+  debug:
+    msg: |
+      {% if env_file_stat.stat.exists and not (force_env_update | default(false)) %}
+      ⚠ .env file already exists - skipping to preserve existing configuration
+      To force update, set force_env_update=true
+      {% else %}
+      ✓ .env file created at {{ app_dir }}/.env
+      ⚠ IMPORTANT: Review and update sensitive values before running containers!
+      Edit with: nano {{ app_dir }}/.env
+      {% endif %}
+
+- name: Determine compose file
+  set_fact:
+    compose_file: "{{ 'compose.prod.yml' if deploy_env == 'production' else 'compose.dev.yml' }}"
+
+- name: Check if compose file exists
+  stat:
+    path: "{{ app_dir }}/{{ compose_file }}"
+  register: compose_file_stat
 
 - name: Build and start Docker containers
   community.docker.docker_compose:
     project_src: "{{ app_dir }}"
+    files:
+      - "{{ compose_file }}"
     state: present
     pull: yes
+    build: "{{ build_images | default(true) }}"
   become_user: "{{ app_user }}"
+  when: compose_file_stat.stat.exists
 
 - name: Run Django migrations
   community.docker.docker_container_exec:

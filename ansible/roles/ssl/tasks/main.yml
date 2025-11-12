@@ -1,0 +1,43 @@
+---
+- name: Install certbot and dependencies
+  apt:
+    name:
+      - certbot
+      - python3-certbot-nginx
+    state: present
+  when: ssl_provider == 'letsencrypt' and (use_caddy is not defined or not use_caddy)
+
+- name: Check if SSL certificate exists
+  stat:
+    path: "/etc/letsencrypt/live/{{ domain_name }}/fullchain.pem"
+  register: ssl_cert
+  when: ssl_provider == 'letsencrypt' and (use_caddy is not defined or not use_caddy)
+
+- name: Obtain SSL certificate with certbot
+  command: >
+    certbot certonly --nginx --non-interactive --agree-tos
+    --email {{ ssl_email }}
+    -d {{ domain_name }}
+    {% if ssl_additional_domains is defined %}
+    {% for domain in ssl_additional_domains %}
+    -d {{ domain }}
+    {% endfor %}
+    {% endif %}
+  when:
+    - ssl_provider == 'letsencrypt'
+    - use_caddy is not defined or not use_caddy
+    - not ssl_cert.stat.exists
+  notify: reload nginx
+
+- name: Set up SSL certificate auto-renewal
+  cron:
+    name: "Renew Let's Encrypt certificates"
+    minute: "0"
+    hour: "3"
+    job: "certbot renew --quiet --post-hook 'systemctl reload nginx'"
+  when: ssl_provider == 'letsencrypt' and (use_caddy is not defined or not use_caddy)
+
+- name: Note about Caddy automatic SSL
+  debug:
+    msg: "Caddy handles SSL certificates automatically. No additional configuration needed."
+  when: use_caddy is defined and use_caddy

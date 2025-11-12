@@ -4,6 +4,12 @@
     name:
       - curl
       - git
+      - wget
+      - tmux
+      - htop
+      - mc
+      - nano
+      - build-essential
       - ufw
       - fail2ban
       - unattended-upgrades
@@ -67,3 +73,53 @@
     name: "{{ app_user }}"
     groups: django
     append: yes
+
+- name: Generate SSH deploy key for git repository access
+  block:
+    - name: Check if SSH key already exists
+      stat:
+        path: "/home/{{ app_user }}/.ssh/id_rsa"
+      register: ssh_key_check
+
+    - name: Generate SSH key pair for deploy
+      openssh_keypair:
+        path: "/home/{{ app_user }}/.ssh/id_rsa"
+        type: rsa
+        size: 4096
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0600'
+        comment: "Deploy key for {{ ansible_hostname }}"
+      when: not ssh_key_check.stat.exists
+
+    - name: Read public key
+      slurp:
+        src: "/home/{{ app_user }}/.ssh/id_rsa.pub"
+      register: deploy_public_key
+      when: generate_deploy_key | default(true)
+
+    - name: Display deploy key information
+      debug:
+        msg: |
+          ========================================
+          SSH Deploy Key Generated
+          ========================================
+          User: {{ app_user }}
+          Path: /home/{{ app_user }}/.ssh/id_rsa.pub
+
+          Public Key:
+          {{ deploy_public_key.content | b64decode }}
+
+          Next Steps:
+          1. Copy the public key above
+          2. Add it to your Git repository:
+             - GitHub: Settings → Deploy keys → Add deploy key
+             - GitLab: Settings → Repository → Deploy keys
+             - Bitbucket: Settings → Access keys → Add key
+          3. Make sure to enable read-only access (recommended)
+          ========================================
+      when:
+        - generate_deploy_key | default(true)
+        - deploy_public_key is defined
+  when: generate_deploy_key | default(true)
+  tags: [git, deploy_key]

@@ -1,0 +1,42 @@
+---
+- name: Install Nginx
+  apt:
+    name: nginx
+    state: present
+    update_cache: yes
+
+- name: Create Nginx log directory
+  file:
+    path: /var/log/nginx
+    state: directory
+    owner: www-data
+    group: adm
+    mode: '0755'
+
+- name: Configure Nginx for reverse proxy
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+  notify: reload nginx
+  when: use_caddy is not defined or not use_caddy
+
+- name: Remove default Nginx site
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: reload nginx
+  when: use_caddy is not defined or not use_caddy
+
+- name: Ensure Nginx is started and enabled
+  systemd:
+    name: nginx
+    state: started
+    enabled: yes
+  when: use_caddy is not defined or not use_caddy
+
+- name: Stop and disable Nginx if using Caddy
+  systemd:
+    name: nginx
+    state: stopped
+    enabled: no
+  when: use_caddy is defined and use_caddy

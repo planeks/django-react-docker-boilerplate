@@ -1,54 +1,117 @@
+# ============================================================================
+# Ansible Connection Configuration
+# ============================================================================
 ansible_user: "{{ lookup('env', 'ANSIBLE_REMOTE_USER') | default('appuser') }}"
 ansible_python_interpreter: /usr/bin/python3
 
+# ============================================================================
 # Project Configuration
+# ============================================================================
 project_name: django_app
 app_user: "{{ ansible_user }}"  # Use the ansible user (ubuntu/appuser)
 app_dir: /home/{{ app_user }}/projects/{{ project_name }}
 venv_dir: "{{ app_dir }}/src/.venv"
 
-# Domain and SSL
+# ============================================================================
+# Domain and SSL Configuration
+# Set DOMAIN_NAME and SSL_EMAIL environment variables before provisioning
+# ============================================================================
 domain_name: "{{ lookup('env', 'DOMAIN_NAME') }}"
-ssl_email: "{{ lookup('env', 'SSL_EMAIL') | default('superadmin@' + domain_name) }}"
+ssl_email: "{{ lookup('env', 'SSL_EMAIL') | default('admin@' + domain_name) }}"
 ssl_provider: letsencrypt
 
+# ============================================================================
 # Database Configuration
-db_name: "{{ project_name }}_db"
-db_user: "{{ project_name }}_user"
+# Set DB_PASSWORD environment variable before provisioning
+# ============================================================================
+db_name: db
+db_user: dbuser
 db_password: "{{ lookup('env', 'DB_PASSWORD') }}"
 
-# Git Repository
+# ============================================================================
+# Git Repository Configuration
+# Required for automated application deployment
+# Set GIT_REPO_URL environment variable (e.g., git@github.com:user/repo.git)
+# ============================================================================
 git_repo_url: "{{ lookup('env', 'GIT_REPO_URL') }}"
 git_branch: "{{ lookup('env', 'GIT_BRANCH') | default('main') }}"
 
+# Deploy Key Generation
+# Set to true to generate SSH key for git repository access (for private repos)
+# The public key will be displayed - add it to your repository's deploy keys
+generate_deploy_key: true
+
+# ============================================================================
 # Monitoring Configuration
+# Node Exporter: System metrics (CPU, memory, disk)
+# Promtail: Log shipping to Loki (optional, requires Loki server)
+# ============================================================================
 enable_monitoring: true
 node_exporter_version: "1.6.1"
 promtail_version: "2.9.0"
 install_node_exporter: true
-install_promtail: false
+install_promtail: false  # Set to true if you have a Loki server
+# promtail_loki_url: http://loki-server:3100/loki/api/v1/push  # Uncomment and set if using Promtail
 
+# ============================================================================
 # Backup Configuration
+# S3/Spaces bucket for database and media backups
+# ============================================================================
 backup_bucket: "{{ project_name }}-backups-{{ cloud_provider }}"
 backup_retention_days: 30
 
-# Health Check
+# ============================================================================
+# Health Check Configuration
+# ============================================================================
 health_check_url: "http://localhost:8000/"
 
-# Django Admin (for initial setup)
-django_admin_user: "{{ lookup('env', 'DJANGO_ADMIN_USER') | default('superadmin') }}"
+# ============================================================================
+# Django Admin Configuration (for initial setup)
+# Set these environment variables before provisioning
+# ============================================================================
+django_admin_user: "{{ lookup('env', 'DJANGO_ADMIN_USER') | default('admin') }}"
 django_admin_password: "{{ lookup('env', 'DJANGO_ADMIN_PASSWORD') }}"
-django_admin_email: "{{ lookup('env', 'DJANGO_ADMIN_EMAIL') | default('superadmin@' + domain_name) }}"
+django_admin_email: "{{ lookup('env', 'DJANGO_ADMIN_EMAIL') | default('admin@' + domain_name) }}"
+django_log_level: "{{ lookup('env', 'DJANGO_LOG_LEVEL') | default('INFO') }}"
 
+# ============================================================================
+# Application Secrets (Optional - can be set via environment variables)
+# If not set, .env file will contain placeholders that need manual update
+# ============================================================================
+# secret_key: "{{ lookup('env', 'DJANGO_SECRET_KEY') }}"  # Uncomment to set
+# email_host: "{{ lookup('env', 'EMAIL_HOST') }}"
+# email_port: "{{ lookup('env', 'EMAIL_PORT') | default('25') }}"
+# email_user: "{{ lookup('env', 'EMAIL_USER') }}"
+# email_password: "{{ lookup('env', 'EMAIL_PASSWORD') }}"
+# sentry_dsn: "{{ lookup('env', 'SENTRY_DSN') }}"
+# celery_flower_user: "{{ lookup('env', 'CELERY_FLOWER_USER') | default('flower') }}"
+# celery_flower_password: "{{ lookup('env', 'CELERY_FLOWER_PASSWORD') }}"
+# caddy_password: "{{ lookup('env', 'CADDY_PASSWORD') }}"
+# vite_dev_server_host: "{{ lookup('env', 'VITE_DEV_SERVER_HOST') }}"
+
+# ============================================================================
+# GitHub Actions Integration
+# Set GITHUB_ACTIONS_SSH_KEY environment variable with the public key
+# This enables automated deployments from GitHub Actions
+# ============================================================================
+setup_github_actions: true
+create_env_template: true
+# github_actions_ssh_key: Set via GITHUB_ACTIONS_SSH_KEY environment variable
+
+# ============================================================================
 # Deployment Options
-deploy_app: true  # Set to false if you dont want to deploy app during provisioning
-build_images: true
-cleanup_images: true
-auto_reboot: false
+# ============================================================================
+deploy_app: false  # Set to true to deploy app during provisioning (requires git_repo_url)
+build_images: true  # Build Docker images during deployment
+cleanup_images: true  # Clean up old Docker images
+auto_reboot: false  # Automatically reboot after kernel updates (use with caution)
+force_env_update: false  # Force update .env file even if it exists
 
-# Disaster Recovery
-dr_target_minutes: 30
-restore_media: true
-create_safety_backup: true
-enforce_target: false
-cleanup_temp_files: true
+# ============================================================================
+# Disaster Recovery Configuration
+# ============================================================================
+dr_target_minutes: 30  # Target time for full restoration (compliance metric)
+restore_media: true  # Restore media files during disaster recovery
+create_safety_backup: true  # Create backup of current state before restoration
+enforce_target: false  # Fail if DR takes longer than target (strict compliance)
+cleanup_temp_files: true  # Clean up temporary files after DR drill
