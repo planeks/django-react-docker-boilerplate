@@ -91,28 +91,28 @@ All scripts are executable and located in `scripts/`:
 │   │   ├── provision.yml                # Server provisioning (enhanced)
 │   │   ├── disaster-recovery.yml        # DR with validation (enhanced)
 │   │   ├── security-updates.yml         # Security updates
-│   │   ├── deploy-django.yml            # Application deployment (new)
-│   │   └── cleanup-backups.yml          # Backup cleanup (new)
+│   │   ├── deploy-django.yml            # Application deployment
+│   │   └── cleanup-backups.yml          # Backup cleanup
 │   └── roles/
 │       ├── common/                      # Base system + security
 │       ├── docker/                      # Docker + journald logging
 │       ├── nginx/                       # Nginx (optional, new)
-│       ├── ssl/                         # SSL certificates (new)
-│       ├── monitoring/                  # Monitoring agents (new)
-│       ├── failover/                    # High availability (new)
+│       ├── ssl/                         # SSL certificates
+│       ├── monitoring/                  # Monitoring agents
+│       ├── failover/                    # High availability
 │       └── django/                      # Django deployment
 ├── scripts/
 │   ├── provision-server.sh              # Server provisioning wrapper
-│   ├── dr-drill.sh                      # DR drill automation (new)
-│   ├── security-update.sh               # Security update wrapper (new)
-│   ├── health-check.sh                  # Health monitoring (new)
-│   ├── view-logs.sh                     # Log viewing helper (new)
-│   ├── test-provisioning.sh             # Provisioning validation (new)
+│   ├── dr-drill.sh                      # DR drill automation
+│   ├── security-update.sh               # Security update wrapper
+│   ├── health-check.sh                  # Health monitoring
+│   ├── view-logs.sh                     # Log viewing helper
+│   ├── test-provisioning.sh             # Provisioning validation
 │   ├── quick-update.sh                  # Existing
 │   └── cleanup-backups.sh               # Existing
 ├── docs/
-│   ├── infrastructure.md                # Complete infrastructure docs (new)
-│   ├── dr-reports/                      # DR drill reports directory (new)
+│   ├── infrastructure.md                # Complete infrastructure docs
+│   ├── dr-reports/                      # DR drill reports directory
 │   └── ...                              # Other existing docs
 ├── compose.prod.yml                     # Updated with journald logging
 ├── compose.dev.yml                      # Development compose

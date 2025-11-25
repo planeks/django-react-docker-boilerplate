@@ -45,12 +45,8 @@ else
     echo "Create ansible/.env.ansible with required variables"
     echo "See ansible/.env.ansible.example for template"
     echo ""
-    read -p "Continue without .env.ansible? (y/N): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo "Provisioning cancelled."
-        exit 1
-    fi
+    echo "Provisioning cancelled."
+    exit 1
 fi
 
 # Run provisioning playbook

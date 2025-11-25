@@ -48,14 +48,6 @@
     - role: docker
       tags: [docker]
 
-    - role: nginx
-      when: setup_nginx | default(true)
-      tags: [nginx]
-
-    - role: ssl
-      when: setup_ssl | default(true)
-      tags: [ssl]
-
     - role: aws_security
       tags: [aws, security, cloud]
       when: cloud_provider == 'aws'
