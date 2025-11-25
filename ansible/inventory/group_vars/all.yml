@@ -1,14 +1,20 @@
 # ============================================================================
 # Ansible Connection Configuration
 # ============================================================================
-ansible_user: "{{ lookup('env', 'ANSIBLE_REMOTE_USER') | default('appuser') }}"
+# SSH connection user - the user Ansible connects as
+# Common values: 'root', 'ubuntu' (AWS EC2), 'admin' (GCP), 'core' (CoreOS)
+ansible_user: "{{ lookup('env', 'ANSIBLE_REMOTE_USER') | default('ubuntu') }}"
 ansible_python_interpreter: /usr/bin/python3
 
 # ============================================================================
 # Project Configuration
 # ============================================================================
 project_name: django_app
-app_user: "{{ ansible_user }}"  # Use the ansible user (ubuntu/appuser)
+
+# Application user - the non-root user that owns the application files
+# This can be the same as ansible_user (e.g., 'ubuntu' on AWS) or different (e.g., 'appuser')
+# Set APP_USER environment variable to override
+app_user: "{{ lookup('env', 'APP_USER') | default('ubuntu') }}"
 app_dir: /home/{{ app_user }}/projects/{{ project_name }}
 venv_dir: "{{ app_dir }}/src/.venv"
 

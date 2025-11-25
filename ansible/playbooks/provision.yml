@@ -1,4 +1,10 @@
 ---
+- hosts: all
+  tasks:
+    - name: Print app_user
+      debug:
+        var: app_user
+
 - name: Provision Django servers
   hosts: all
   become: yes
