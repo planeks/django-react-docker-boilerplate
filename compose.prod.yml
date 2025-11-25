@@ -16,6 +16,10 @@ x-django: &django
     - media:/data/media/
   env_file:
     - ./.env
+  logging:
+    driver: journald
+    options:
+      tag: "{{.Name}}"
 
 services:
   django:
@@ -34,6 +38,10 @@ services:
       - redis
     env_file:
       - ./.env
+    logging:
+      driver: journald
+      options:
+        tag: "{{.Name}}"
   postgres:
     build:
       context: .
@@ -45,9 +53,17 @@ services:
       - prod_backups:/backups:z
     env_file:
       - ./.env
+    logging:
+      driver: journald
+      options:
+        tag: "{{.Name}}"
   redis:
     image: redis:6.0
     restart: always
+    logging:
+      driver: journald
+      options:
+        tag: "{{.Name}}"
   mkdocs:
     build:
       dockerfile: ./docker/mkdocs/Dockerfile
@@ -61,6 +77,10 @@ services:
     volumes:
       - ./docs:/code/docs
       - docs:/code/doc_site
+    logging:
+      driver: journald
+      options:
+        tag: "{{.Name}}"
   frontend:
     build:
       context: .
@@ -73,6 +93,10 @@ services:
       - /opt/project/src/frontend/node_modules
     profiles:
       - build
+    logging:
+      driver: journald
+      options:
+        tag: "{{.Name}}"
   caddy:
     build:
       context: .
@@ -95,6 +119,10 @@ services:
     depends_on:
       - django
       - flower
+    logging:
+      driver: journald
+      options:
+        tag: "{{.Name}}"
 
 volumes:
   prod_postgres:

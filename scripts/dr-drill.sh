@@ -27,6 +27,20 @@ echo -e "${GREEN}========================================${NC}"
 # Change to ansible directory
 cd "$(dirname "$0")/../ansible" || exit 1
 
+# Load environment variables from .env.ansible if it exists
+if [ -f ".env.ansible" ]; then
+    echo -e "\n[Loading environment variables from .env.ansible]"
+    set -a  # Automatically export all variables
+    source .env.ansible
+    set +a
+    echo "✓ Environment variables loaded"
+else
+    echo -e "\n⚠ WARNING: .env.ansible not found"
+    if [ "$CLOUD_PROVIDER" = "digitalocean" ] || [ "$CLOUD_PROVIDER" = "aws" ]; then
+        echo "Note: ${CLOUD_PROVIDER} dynamic inventory requires API credentials in .env.ansible"
+    fi
+fi
+
 # Get the most recent backup timestamp
 echo -e "\n${YELLOW}Finding most recent backup...${NC}"
 if [ "$CLOUD_PROVIDER" = "aws" ]; then

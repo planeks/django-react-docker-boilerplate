@@ -102,6 +102,7 @@ django_log_level: "{{ lookup('env', 'DJANGO_LOG_LEVEL') | default('INFO') }}"
 # ============================================================================
 setup_github_actions: true
 create_env_template: true
+prompt_for_github_setup: true  # Set to false to skip interactive prompt when SSH key is not provided
 # github_actions_ssh_key: Set via GITHUB_ACTIONS_SSH_KEY environment variable
 
 # ============================================================================

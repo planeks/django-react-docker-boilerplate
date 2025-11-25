@@ -1,19 +1,44 @@
 ---
-- name: Ensure GitHub Actions can deploy to this server
+- name: Configure GitHub Actions deployment access
   block:
-    - name: Check if GitHub Actions SSH key is provided
-      assert:
-        that:
-          - github_actions_ssh_key is defined or lookup('env', 'GITHUB_ACTIONS_SSH_KEY') | length > 0
-        fail_msg: "GitHub Actions SSH key not provided. Set github_actions_ssh_key variable or GITHUB_ACTIONS_SSH_KEY env var"
-      when: setup_github_actions | default(true)
-
-    - name: Set GitHub Actions SSH key from environment if not set
+    - name: Set essential variables
       set_fact:
-        github_actions_ssh_key: "{{ lookup('env', 'GITHUB_ACTIONS_SSH_KEY') }}"
-      when:
-        - github_actions_ssh_key is not defined
-        - lookup('env', 'GITHUB_ACTIONS_SSH_KEY') | length > 0
+        app_user: "{{ app_user | default(lookup('env', 'APP_USER') | default(ansible_user | default('ubuntu'))) }}"
+        project_name: "{{ project_name | default('django_app') }}"
+
+    - name: Set app_dir with defaults
+      set_fact:
+        app_dir: "{{ app_dir | default('/home/' + app_user + '/projects/' + project_name) }}"
+
+    - name: Get GitHub Actions SSH key from environment
+      set_fact:
+        github_actions_ssh_key: "{{ github_actions_ssh_key | default(lookup('env', 'GITHUB_ACTIONS_SSH_KEY')) }}"
+      when: github_actions_ssh_key is not defined
+
+    - name: Validate SSH key is provided
+      fail:
+        msg: |
+          ========================================
+          ⚠️  GitHub Actions SSH Key Required
+          ========================================
+
+          Please provide the SSH public key via one of:
+
+          1. Environment variable:
+             export GITHUB_ACTIONS_SSH_KEY="ssh-ed25519 AAAA..."
+
+          2. Ansible variable:
+             -e "github_actions_ssh_key=ssh-ed25519 AAAA..."
+
+          To generate a new SSH key:
+             ssh-keygen -t ed25519 -C "github-actions" -f ~/.ssh/github_actions
+
+          Then add the private key to GitHub Secrets:
+             PROD_SSH_KEY: (contents of ~/.ssh/github_actions)
+
+          Documentation: docs/github-actions-setup.md
+          ========================================
+      when: github_actions_ssh_key is not defined or github_actions_ssh_key | length == 0
 
     - name: Add GitHub Actions SSH public key to app user authorized_keys
       authorized_key:
@@ -21,7 +46,6 @@
         key: "{{ github_actions_ssh_key }}"
         state: present
         comment: "GitHub Actions deployment key"
-      when: github_actions_ssh_key is defined
 
     - name: Add GitHub Actions SSH public key to ansible user authorized_keys
       authorized_key:
@@ -29,7 +53,14 @@
         key: "{{ github_actions_ssh_key }}"
         state: present
         comment: "GitHub Actions deployment key"
-      when: github_actions_ssh_key is defined
+
+    - name: Ensure application directory exists
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0755'
 
     - name: Create .env template for application
       template:
@@ -57,21 +88,36 @@
         - not env_file_check.stat.exists
         - create_env_template | default(true)
 
-    - name: Display GitHub Actions setup information
+    - name: Display GitHub Actions setup completion
       debug:
         msg: |
           ========================================
-          GitHub Actions Setup Complete
+          ✅ GitHub Actions Setup Complete!
           ========================================
-          - SSH key added for user: {{ app_user }}
-          - SSH key added for user: {{ ansible_user }}
-          - Application directory: {{ app_dir }}
-          - .env template created: {{ app_dir }}/.env.template
 
-          Next steps for GitHub Actions:
-          1. Add server IP to GitHub Secrets as PROD_HOST (or DEV_HOST/STAGING_HOST)
-          2. Add the corresponding private key to GitHub Secrets
-          3. Ensure .env file is populated with actual values
-          4. Run your GitHub Actions deployment workflow
+          Server Details:
+          ──────────────────────────────────────
+          Host: {{ inventory_hostname }}
+          User: {{ app_user }}
+          App Directory: {{ app_dir }}
+
+          GitHub Secrets Required:
+          ──────────────────────────────────────
+          Repository: {{ lookup('env', 'GITHUB_REPOSITORY') | default('YOUR_USERNAME/YOUR_REPO') }}
+          Settings: https://github.com/{{ lookup('env', 'GITHUB_REPOSITORY') | default('YOUR_USERNAME/YOUR_REPO') }}/settings/secrets/actions
+
+          Add these secrets:
+          - PROD_HOST = {{ inventory_hostname }}
+          - PROD_SSH_KEY = (private key content)
+
+          For other environments:
+          - DEV_HOST / DEV_SSH_KEY
+          - STAGING_HOST / STAGING_SSH_KEY
+
+          Next Steps:
+          ──────────────────────────────────────
+          1. Configure .env file: ssh {{ app_user }}@{{ inventory_hostname }} nano {{ app_dir }}/.env
+          2. Push to GitHub to trigger deployment
+
+          Documentation: docs/github-actions-setup.md
           ========================================
-      when: github_actions_ssh_key is defined
