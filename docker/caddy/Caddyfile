@@ -3,9 +3,6 @@
     @api path /api/* /admin/*
 	@docs path /api/schema/ /api/swagger-ui/
 	handle @api {
-		basic_auth @docs {
-			appuser {$CADDY_PASSWORD}
-		}
 		reverse_proxy django:8000
 	}
 

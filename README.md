@@ -78,7 +78,6 @@ export DB_PASSWORD=secure_password
 
 - `scripts/provision-server.sh` - Provision new servers
 - `scripts/dr-drill.sh` - Run disaster recovery drills
-- `scripts/security-update.sh` - Apply security updates
 - `scripts/health-check.sh` - Check server health
 - `scripts/view-logs.sh` - View container logs
 - `scripts/test-provisioning.sh` - Validate provisioning
@@ -88,7 +87,6 @@ export DB_PASSWORD=secure_password
 - `ansible/playbooks/provision.yml` - Complete server provisioning
 - `ansible/playbooks/disaster-recovery.yml` - Restore from backups
 - `ansible/playbooks/security-updates.yml` - Apply security patches
-- `ansible/playbooks/deploy-django.yml` - Deploy application
 - `ansible/playbooks/cleanup-backups.yml` - Remove old backups
 
 See [Infrastructure Documentation](docs/infrastructure.md) for complete details.

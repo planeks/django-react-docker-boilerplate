@@ -45,12 +45,9 @@ All scripts are executable and located in `scripts/`:
 
 - `provision-server.sh` - Provision new servers from scratch
 - `dr-drill.sh` - Run automated disaster recovery drills
-- `security-update.sh` - Apply security updates
 - `health-check.sh` - Comprehensive server health checks
 - `view-logs.sh` - View container logs from journald
 - `test-provisioning.sh` - Validate server provisioning
-- `quick-update.sh` - Quick application deployment
-- `cleanup-backups.sh` - Remove old backups
 
 ### 6. Documentation
 - **Comprehensive infrastructure documentation** (`docs/infrastructure.md`):
@@ -91,25 +88,16 @@ All scripts are executable and located in `scripts/`:
 │   │   ├── provision.yml                # Server provisioning (enhanced)
 │   │   ├── disaster-recovery.yml        # DR with validation (enhanced)
 │   │   ├── security-updates.yml         # Security updates
-│   │   ├── deploy-django.yml            # Application deployment
-│   │   └── cleanup-backups.yml          # Backup cleanup
 │   └── roles/
 │       ├── common/                      # Base system + security
 │       ├── docker/                      # Docker + journald logging
-│       ├── nginx/                       # Nginx (optional, new)
-│       ├── ssl/                         # SSL certificates
-│       ├── monitoring/                  # Monitoring agents
 │       ├── failover/                    # High availability
-│       └── django/                      # Django deployment
 ├── scripts/
 │   ├── provision-server.sh              # Server provisioning wrapper
 │   ├── dr-drill.sh                      # DR drill automation
-│   ├── security-update.sh               # Security update wrapper
 │   ├── health-check.sh                  # Health monitoring
 │   ├── view-logs.sh                     # Log viewing helper
 │   ├── test-provisioning.sh             # Provisioning validation
-│   ├── quick-update.sh                  # Existing
-│   └── cleanup-backups.sh               # Existing
 ├── docs/
 │   ├── infrastructure.md                # Complete infrastructure docs
 │   ├── dr-reports/                      # DR drill reports directory
@@ -154,12 +142,6 @@ All scripts are executable and located in `scripts/`:
 
 ### Apply Security Updates
 ```bash
-# Quarterly security updates
-./scripts/security-update.sh aws production
-
-# Critical patches (immediate)
-./scripts/security-update.sh aws production
-```
 
 ### View Logs
 ```bash

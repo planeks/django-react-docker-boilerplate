@@ -36,11 +36,11 @@ db_password: "{{ lookup('env', 'DB_PASSWORD') }}"
 
 # ============================================================================
 # Git Repository Configuration
-# Required for automated application deployment
-# Set GIT_REPO_URL environment variable (e.g., git@github.com:user/repo.git)
+# Auto-detects from current git repository or uses GIT_REPO_URL env variable
+# Converts local git URL to GitHub SSH format automatically
 # ============================================================================
-git_repo_url: "{{ lookup('env', 'GIT_REPO_URL') }}"
-git_branch: "{{ lookup('env', 'GIT_BRANCH') | default('main') }}"
+git_repo_url: "{{ lookup('env', 'GIT_REPO_URL') | default(lookup('pipe', 'git remote get-url origin 2>/dev/null | sed -E \"s#.*/git/([^/]+/[^/]+).*#git@github.com:\\1.git#\" || echo \"\"', errors='ignore') | default('', true), true) }}"
+git_branch: "{{ lookup('env', 'GIT_BRANCH') | default(lookup('pipe', 'git rev-parse --abbrev-ref HEAD 2>/dev/null || echo \"main\"', errors='ignore') | default('main', true), true) }}"
 
 # Deploy Key Generation
 # Set to true to generate SSH key for git repository access (for private repos)

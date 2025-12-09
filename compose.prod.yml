@@ -1,9 +1,4 @@
-x-django: &django
-  build:
-    context: .
-    dockerfile: ./docker/django/Dockerfile
-    args:
-      ENVIRONMENT: production # Pass the build argument
+x-django-common: &django-common
   restart: always
   image: "${COMPOSE_PROJECT_NAME}_prod"
   depends_on:
@@ -23,13 +18,26 @@ x-django: &django
 
 services:
   django:
-    <<: *django
+    <<: *django-common
+    build:
+      context: .
+      dockerfile: ./docker/django/Dockerfile
+      args:
+        ENVIRONMENT: production # Pass the build argument
     command: prod
   celeryworker:
-    <<: *django
+    <<: *django-common
+    depends_on:
+      - django
+      - postgres
+      - redis
     command: celery worker -l INFO
   celerybeat:
-    <<: *django
+    <<: *django-common
+    depends_on:
+      - django
+      - postgres
+      - redis
     command: celery beat -l INFO
   flower:
     image: mher/flower:0.9.7
@@ -71,7 +79,7 @@ services:
     env_file:
       - .env
     image: ${COMPOSE_PROJECT_NAME}/docs
-    container_name: ${COMPOSE_PROJECT_NAME}-docs-${ENVIRONMENT}
+    container_name: ${COMPOSE_PROJECT_NAME}-docs-prod
     command:
       - build
     volumes:

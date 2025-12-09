@@ -10,10 +10,13 @@
       set_fact:
         app_dir: "{{ app_dir | default('/home/' + app_user + '/projects/' + project_name) }}"
 
-    - name: Get GitHub Actions SSH key from environment
+    - name: Get GitHub Actions SSH key from environment or variable
       set_fact:
-        github_actions_ssh_key: "{{ github_actions_ssh_key | default(lookup('env', 'GITHUB_ACTIONS_SSH_KEY')) }}"
-      when: github_actions_ssh_key is not defined
+        github_actions_ssh_key_raw: "{{ github_actions_ssh_key | default(lookup('env', 'GITHUB_ACTIONS_SSH_KEY')) }}"
+
+    - name: Clean and validate SSH key
+      set_fact:
+        github_actions_ssh_key: "{{ github_actions_ssh_key_raw | default('') | trim }}"
 
     - name: Validate SSH key is provided
       fail:
@@ -22,23 +25,52 @@
           ⚠️  GitHub Actions SSH Key Required
           ========================================
 
-          Please provide the SSH public key via one of:
+          The provision script should auto-generate this key.
+          If you're seeing this error, the key generation failed.
 
-          1. Environment variable:
-             export GITHUB_ACTIONS_SSH_KEY="ssh-ed25519 AAAA..."
-
-          2. Ansible variable:
-             -e "github_actions_ssh_key=ssh-ed25519 AAAA..."
-
-          To generate a new SSH key:
-             ssh-keygen -t ed25519 -C "github-actions" -f ~/.ssh/github_actions
-
-          Then add the private key to GitHub Secrets:
-             PROD_SSH_KEY: (contents of ~/.ssh/github_actions)
-
-          Documentation: docs/github-actions-setup.md
+          Manual fix:
+          1. Generate: ssh-keygen -t ed25519 -C "github-actions" -f ~/.ssh/github_actions -N ""
+          2. Add PUBLIC key to ansible/.env.ansible:
+             GITHUB_ACTIONS_SSH_KEY="ssh-ed25519 AAAA..."
+          3. Run provisioning again
           ========================================
       when: github_actions_ssh_key is not defined or github_actions_ssh_key | length == 0
+
+    - name: Validate SSH key format
+      fail:
+        msg: |
+          ========================================
+          ⚠️  Invalid SSH Key Format
+          ========================================
+
+          The SSH key is malformed or incomplete.
+
+          Current key value (first 50 chars): {{ github_actions_ssh_key[:50] }}...
+          Key length: {{ github_actions_ssh_key | length }}
+
+          A valid SSH public key should look like:
+          ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... comment
+
+          Please check:
+          1. The key file is not corrupted
+          2. You copied the entire PUBLIC key (not private key)
+          3. The key has no extra newlines or spaces
+
+          To regenerate:
+          ssh-keygen -t ed25519 -C "github-actions" -f ~/.ssh/github_actions -N ""
+          cat ~/.ssh/github_actions.pub
+          ========================================
+      when: >
+        github_actions_ssh_key.split() | length < 2 or
+        not github_actions_ssh_key.startswith('ssh-')
+
+    - name: Debug SSH key info (for troubleshooting)
+      debug:
+        msg:
+          - "SSH Key Type: {{ github_actions_ssh_key.split()[0] }}"
+          - "SSH Key Length: {{ github_actions_ssh_key | length }} characters"
+          - "SSH Key Parts Count: {{ github_actions_ssh_key.split() | length }}"
+      when: ansible_verbosity >= 1
 
     - name: Add GitHub Actions SSH public key to app user authorized_keys
       authorized_key:
@@ -61,6 +93,48 @@
         owner: "{{ app_user }}"
         group: "{{ app_user }}"
         mode: '0755'
+
+    # ============================================================================
+    # Auto-Deploy Application (Optional)
+    # ============================================================================
+
+    - name: Check if git repository already exists
+      stat:
+        path: "{{ app_dir }}/.git"
+      register: git_repo_check
+      when: deploy_app | default(false) | bool
+
+    - name: Clone application repository
+      git:
+        repo: "{{ git_repo_url }}"
+        dest: "{{ app_dir }}"
+        version: "{{ git_branch }}"
+        accept_hostkey: yes
+      become: yes
+      become_user: "{{ app_user }}"
+      when:
+        - deploy_app | default(false) | bool
+        - not git_repo_check.stat.exists
+        - git_repo_url is defined
+        - git_repo_url | length > 0
+
+    - name: Update repository to latest version
+      git:
+        repo: "{{ git_repo_url }}"
+        dest: "{{ app_dir }}"
+        version: "{{ git_branch }}"
+        update: yes
+      become: yes
+      become_user: "{{ app_user }}"
+      when:
+        - deploy_app | default(false) | bool
+        - git_repo_check.stat.exists
+        - git_repo_url is defined
+        - git_repo_url | length > 0
+
+    # ============================================================================
+    # Environment Configuration (After Git Operations)
+    # ============================================================================
 
     - name: Create .env template for application
       template:
@@ -88,6 +162,69 @@
         - not env_file_check.stat.exists
         - create_env_template | default(true)
 
+    - name: Set compose file based on environment
+      set_fact:
+        compose_file: "{{ 'compose.dev.yml' if deploy_env == 'dev' or deploy_env == 'development' else 'compose.prod.yml' }}"
+      when: deploy_app | default(false) | bool
+
+    - name: Make deploy script executable
+      file:
+        path: "{{ app_dir }}/scripts/deploy.sh"
+        mode: '0755'
+      become: yes
+      become_user: "{{ app_user }}"
+      when:
+        - deploy_app | default(false) | bool
+        - git_repo_url is defined
+        - git_repo_url | length > 0
+
+    - name: Run initial deployment
+      shell: |
+        cd {{ app_dir }}
+        ./scripts/deploy.sh {{ compose_file }} {{ git_branch }} {{ app_dir }}
+      become: yes
+      become_user: "{{ app_user }}"
+      environment:
+        PATH: "/usr/local/bin:/usr/bin:/bin"
+        ENVIRONMENT: "{{ deploy_env | default('production') }}"
+      when:
+        - deploy_app | default(false) | bool
+        - git_repo_url is defined
+        - git_repo_url | length > 0
+      register: deploy_result
+      ignore_errors: yes
+
+    - name: Display deployment result
+      debug:
+        msg: |
+          ========================================
+          {% if deploy_result.rc == 0 %}
+          ✅ Application Deployed Successfully!
+          ========================================
+
+          The application is now running on:
+          http://{{ inventory_hostname }}
+
+          {% else %}
+          ⚠️  Deployment Failed
+          ========================================
+
+          Error: {{ deploy_result.stderr | default('Unknown error') }}
+
+          You can retry deployment manually:
+          ssh {{ app_user }}@{{ inventory_hostname }}
+          cd {{ app_dir }}
+          ./scripts/deploy.sh {{ compose_file }} {{ git_branch }} {{ app_dir }}
+          {% endif %}
+      when:
+        - deploy_app | default(false) | bool
+        - deploy_result is defined
+        - deploy_result.rc is defined
+
+    # ============================================================================
+    # Setup Complete
+    # ============================================================================
+
     - name: Display GitHub Actions setup completion
       debug:
         msg: |
@@ -114,10 +251,19 @@
           - DEV_HOST / DEV_SSH_KEY
           - STAGING_HOST / STAGING_SSH_KEY
 
+          {% if deploy_app | default(false) | bool %}
+          Application Status:
+          ──────────────────────────────────────
+          Repository: {{ git_repo_url | default('Not configured') }}
+          Branch: {{ git_branch | default('Not specified') }}
+          Status: {% if deploy_result is defined and deploy_result.rc is defined and deploy_result.rc == 0 %}✅ Deployed{% elif deploy_result is defined and deploy_result.rc is defined %}⚠️  Deployment Failed{% else %}⚠️  Skipped (no git_repo_url){% endif %}
+
+          {% else %}
           Next Steps:
           ──────────────────────────────────────
           1. Configure .env file: ssh {{ app_user }}@{{ inventory_hostname }} nano {{ app_dir }}/.env
           2. Push to GitHub to trigger deployment
+          {% endif %}
 
           Documentation: docs/github-actions-setup.md
           ========================================

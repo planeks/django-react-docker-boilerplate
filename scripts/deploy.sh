@@ -2,7 +2,7 @@
 # ============================================================================
 # Deployment Script for GitHub Actions
 # ============================================================================
-# Purpose: Safe deployment with backup and rollback capability
+# Purpose: Deploy application to production
 # Usage: ./scripts/deploy.sh <compose-file> <branch> <project-path>
 # ============================================================================
 
@@ -19,9 +19,6 @@ NC='\033[0m' # No Color
 COMPOSE_FILE="${1:-compose.prod.yml}"
 BRANCH="${2:-main}"
 PROJECT_PATH="${3:-$(pwd)}"
-BACKUP_DIR="${PROJECT_PATH}/backups"
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-BACKUP_TAG="pre_deploy_${TIMESTAMP}"
 
 # ============================================================================
 # Helper Functions
@@ -66,41 +63,9 @@ if [ ! -f "$COMPOSE_FILE" ]; then
     exit 1
 fi
 
-# ============================================================================
-# Backup Current State
-# ============================================================================
-
-log_info "Creating pre-deployment backup..."
-
-# Create backup directory
-mkdir -p "$BACKUP_DIR"
-
-# Get current git commit
+# Get current git commit for logging
 CURRENT_COMMIT=$(git rev-parse HEAD)
 log_info "Current commit: $CURRENT_COMMIT"
-
-# Save current commit to backup file
-echo "$CURRENT_COMMIT" > "$BACKUP_DIR/last_known_good_commit"
-
-# Backup database (if PostgreSQL container is running)
-if docker compose -f "$COMPOSE_FILE" ps postgres | grep -q "Up"; then
-    log_info "Backing up database..."
-    docker compose -f "$COMPOSE_FILE" exec -T postgres pg_dump -U postgres -Fc postgres > "$BACKUP_DIR/db_backup_${TIMESTAMP}.dump" || {
-        log_warning "Database backup failed, but continuing..."
-    }
-    log_success "Database backed up to: db_backup_${TIMESTAMP}.dump"
-fi
-
-# Tag current Docker images
-log_info "Tagging current Docker images for rollback..."
-for service in $(docker compose -f "$COMPOSE_FILE" config --services); do
-    IMAGE=$(docker compose -f "$COMPOSE_FILE" config | grep -A 5 "^  $service:" | grep "image:" | awk '{print $2}' || echo "")
-    if [ -n "$IMAGE" ]; then
-        docker tag "$IMAGE" "${IMAGE}:${BACKUP_TAG}" 2>/dev/null || log_warning "Could not tag $IMAGE"
-    fi
-done
-
-log_success "Backup complete!"
 
 # ============================================================================
 # Pull Latest Code
@@ -149,8 +114,6 @@ log_success "Build complete!"
 log_info "Starting containers..."
 docker compose -f "$COMPOSE_FILE" up -d || {
     log_error "Failed to start containers!"
-    log_error "Rolling back..."
-    rollback
     exit 1
 }
 
@@ -161,14 +124,33 @@ log_success "Containers started!"
 # ============================================================================
 
 log_info "Waiting for services to be ready..."
-sleep 10
 
-# Check if containers are running
-FAILED_SERVICES=$(docker compose -f "$COMPOSE_FILE" ps --status=exited --format json | jq -r '.Name' 2>/dev/null || echo "")
+# Wait for postgres to be ready (up to 60 seconds)
+log_info "Waiting for PostgreSQL to be ready..."
+POSTGRES_READY=0
+for i in {1..30}; do
+    if docker compose -f "$COMPOSE_FILE" exec -T postgres bash -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"' > /dev/null 2>&1; then
+        POSTGRES_READY=1
+        break
+    fi
+    sleep 2
+done
+
+if [ $POSTGRES_READY -eq 0 ]; then
+    log_error "PostgreSQL failed to become ready in time!"
+    exit 1
+fi
+
+log_success "PostgreSQL is ready!"
+
+# Wait additional time for Django to start and run migrations
+log_info "Waiting for Django to complete startup..."
+sleep 15
+
+# Check if containers are running (excluding build-only services like mkdocs)
+FAILED_SERVICES=$(docker compose -f "$COMPOSE_FILE" ps --status=exited --format json | jq -r 'select(.Name | contains("docs") | not) | .Name' 2>/dev/null || echo "")
 if [ -n "$FAILED_SERVICES" ]; then
     log_error "Some services failed to start: $FAILED_SERVICES"
-    log_error "Rolling back..."
-    rollback
     exit 1
 fi
 
@@ -177,15 +159,28 @@ log_success "All services running!"
 # ============================================================================
 # Run Migrations
 # ============================================================================
+# Note: The Django entrypoint already runs migrations on startup.
+# This is a verification step to ensure migrations are complete.
 
-log_info "Running database migrations..."
-docker compose -f "$COMPOSE_FILE" exec -T django poetry run python manage.py migrate --noinput || {
+log_info "Verifying database migrations..."
+
+# Check Django container logs for any startup issues
+log_info "Checking Django container status..."
+docker compose -f "$COMPOSE_FILE" logs --tail=20 django
+
+# Run migrations with proper error capture
+log_info "Running migration verification..."
+MIGRATION_OUTPUT=$(docker compose -f "$COMPOSE_FILE" exec -T django bash -c "cd /opt/project/src && poetry run python manage.py migrate --noinput" 2>&1) || {
     log_error "Migrations failed!"
-    log_error "Rolling back..."
-    rollback
+    log_error "Migration output:"
+    echo "$MIGRATION_OUTPUT"
+    log_error "Django container logs:"
+    docker compose -f "$COMPOSE_FILE" logs --tail=50 django
     exit 1
 }
 
+log_info "Migration output:"
+echo "$MIGRATION_OUTPUT"
 log_success "Migrations complete!"
 
 # ============================================================================
@@ -193,10 +188,14 @@ log_success "Migrations complete!"
 # ============================================================================
 
 log_info "Collecting static files..."
-docker compose -f "$COMPOSE_FILE" exec -T django poetry run python manage.py collectstatic --noinput || {
+COLLECTSTATIC_OUTPUT=$(docker compose -f "$COMPOSE_FILE" exec -T django bash -c "cd /opt/project/src && poetry run python manage.py collectstatic --noinput" 2>&1) || {
     log_warning "Static file collection failed, but continuing..."
+    log_warning "Collectstatic output:"
+    echo "$COLLECTSTATIC_OUTPUT"
 }
 
+log_info "Collectstatic output:"
+echo "$COLLECTSTATIC_OUTPUT"
 log_success "Static files collected!"
 
 # ============================================================================
@@ -206,12 +205,6 @@ log_success "Static files collected!"
 log_info "Cleaning up old Docker images..."
 docker image prune -f
 
-# Keep only last 7 backups
-log_info "Cleaning up old backups..."
-cd "$BACKUP_DIR"
-ls -t db_backup_*.dump 2>/dev/null | tail -n +8 | xargs -r rm -- 2>/dev/null || true
-cd "$PROJECT_PATH"
-
 # ============================================================================
 # Health Check
 # ============================================================================
@@ -219,14 +212,18 @@ cd "$PROJECT_PATH"
 log_info "Performing health check..."
 
 # Check if Django is responding
-if docker compose -f "$COMPOSE_FILE" exec -T django poetry run python manage.py check --deploy > /dev/null 2>&1; then
-    log_success "Django health check passed!"
-else
+HEALTH_CHECK_OUTPUT=$(docker compose -f "$COMPOSE_FILE" exec -T django bash -c "cd /opt/project/src && poetry run python manage.py check --deploy" 2>&1) || {
     log_error "Django health check failed!"
-    log_error "Rolling back..."
-    rollback
+    log_error "Health check output:"
+    echo "$HEALTH_CHECK_OUTPUT"
+    log_error "Django container logs:"
+    docker compose -f "$COMPOSE_FILE" logs --tail=50 django
     exit 1
-fi
+}
+
+log_info "Health check output:"
+echo "$HEALTH_CHECK_OUTPUT"
+log_success "Django health check passed!"
 
 # ============================================================================
 # Success
@@ -237,35 +234,6 @@ log_success "Deployment completed successfully!"
 log_success "========================================"
 log_success "Commit: $NEW_COMMIT"
 log_success "Time: $(date)"
-log_success "Backup: db_backup_${TIMESTAMP}.dump"
 log_success "========================================"
 
 exit 0
-
-# ============================================================================
-# Rollback Function
-# ============================================================================
-
-rollback() {
-    log_warning "========================================"
-    log_warning "ROLLING BACK TO PREVIOUS VERSION"
-    log_warning "========================================"
-
-    # Get last known good commit
-    if [ -f "$BACKUP_DIR/last_known_good_commit" ]; then
-        ROLLBACK_COMMIT=$(cat "$BACKUP_DIR/last_known_good_commit")
-        log_info "Rolling back to commit: $ROLLBACK_COMMIT"
-
-        # Checkout previous commit
-        git checkout "$ROLLBACK_COMMIT"
-
-        # Restart containers
-        docker compose -f "$COMPOSE_FILE" up -d --force-recreate
-
-        log_warning "Rollback complete. Please investigate the issue."
-        log_warning "To restore database, run:"
-        log_warning "  docker compose -f $COMPOSE_FILE exec -T postgres pg_restore -U postgres -d postgres < $BACKUP_DIR/db_backup_${TIMESTAMP}.dump"
-    else
-        log_error "No backup found for rollback!"
-    fi
-}

@@ -220,14 +220,6 @@ DR reports are saved to `docs/dr-reports/` and include:
 
 ### Quarterly Security Updates
 
-Apply security updates every quarter:
-
-```bash
-./scripts/security-update.sh aws production
-```
-
-Or use Ansible:
-
 ```bash
 cd ansible
 ansible-playbook -i inventory/aws.yml \
@@ -577,8 +569,6 @@ cd /home/django/django_app && docker compose -f compose.prod.yml restart
 # Run DR drill
 ./scripts/dr-drill.sh <cloud> <env> <type>
 
-# Security updates
-./scripts/security-update.sh <cloud> <env>
 ```
 
 ### Support

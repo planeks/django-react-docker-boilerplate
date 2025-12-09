@@ -1,9 +1,4 @@
-x-django: &django
-  build:
-    context: .
-    dockerfile: ./docker/django/Dockerfile
-    args:
-      ENVIRONMENT: development  # Pass the build argument
+x-django-common: &django-common
   image:  "${COMPOSE_PROJECT_NAME}_dev"
   depends_on:
     - postgres
@@ -18,13 +13,23 @@ x-django: &django
 
 services:
   django:
-    <<: *django
+    <<: *django-common
+    build:
+      context: .
+      dockerfile: ./docker/django/Dockerfile
+      args:
+        ENVIRONMENT: development  # Pass the build argument
     ports:
       - "8000:8000"
     command: dev
     entrypoint: /entrypoint
   celeryworker:
-    <<: *django
+    <<: *django-common
+    depends_on:
+      - django
+      - postgres
+      - redis
+      - mailhog
     command: celery-dev worker -l INFO
     healthcheck:
       test: ["CMD-SHELL", "celery -A config inspect ping -d celery@$$HOSTNAME"]
@@ -33,7 +38,12 @@ services:
       retries: 5
       start_period: 30s
   celerybeat:
-    <<: *django
+    <<: *django-common
+    depends_on:
+      - django
+      - postgres
+      - redis
+      - mailhog
     command: celery-dev beat -l INFO
   flower:
     image: mher/flower:0.9.7
