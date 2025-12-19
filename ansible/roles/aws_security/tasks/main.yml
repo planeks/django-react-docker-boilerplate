@@ -1,5 +1,6 @@
 ---
-- name: Configure AWS Security Group for web server
+# Configure AWS Security Group
+- name: Configure AWS Security Group
   block:
     - name: Get instance metadata
       uri:
@@ -86,20 +87,14 @@
         - ec2_security_group_id is defined
         - configure_security_group | default(true)
 
-    - name: Display security group configuration
+    - name: Display security group config
       debug:
         msg: |
-          ========================================
-          AWS Security Group Configuration
-          ========================================
-          Instance ID: {{ ec2_instance_id | default('N/A') }}
-          Security Group: {{ ec2_security_group_id | default('N/A') }}
-
-          Ports Configured:
-          - 22  (SSH)   ✓
-          - 80  (HTTP)  ✓
-          - 443 (HTTPS) ✓
-          ========================================
+          === AWS Security Group ===
+          Instance: {{ ec2_instance_id | default('N/A') }}
+          Group: {{ ec2_security_group_id | default('N/A') }}
+          Ports: 22 (SSH), 80 (HTTP), 443 (HTTPS)
+          =========================
       when: ec2_instance_id is defined
 
   when: cloud_provider == 'aws'

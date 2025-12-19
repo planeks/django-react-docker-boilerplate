@@ -1,4 +1,5 @@
 ---
+# Create monitoring user
 - name: Create monitoring user
   user:
     name: monitoring
@@ -6,6 +7,7 @@
     create_home: no
     shell: /bin/false
 
+# Install Node Exporter for metrics
 - name: Install Node Exporter
   block:
     - name: Download Node Exporter
@@ -13,6 +15,7 @@
         url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
         dest: /tmp/node_exporter.tar.gz
         mode: '0644'
+        timeout: 300
 
     - name: Extract Node Exporter
       unarchive:
@@ -53,7 +56,8 @@
         daemon_reload: yes
   when: install_node_exporter | default(true)
 
-- name: Install Promtail for log aggregation
+# Install Promtail for log aggregation
+- name: Install Promtail
   block:
     - name: Download Promtail
       get_url:

@@ -16,7 +16,6 @@ project_name: django_app
 # Set APP_USER environment variable to override
 app_user: "{{ lookup('env', 'APP_USER') | default('ubuntu') }}"
 app_dir: /home/{{ app_user }}/projects/{{ project_name }}
-venv_dir: "{{ app_dir }}/src/.venv"
 
 # ============================================================================
 # Domain and SSL Configuration
@@ -53,8 +52,8 @@ generate_deploy_key: true
 # Promtail: Log shipping to Loki (optional, requires Loki server)
 # ============================================================================
 enable_monitoring: true
-node_exporter_version: "1.6.1"
-promtail_version: "2.9.0"
+node_exporter_version: "1.8.2"
+promtail_version: "3.0.0"
 install_node_exporter: true
 install_promtail: false  # Set to true if you have a Loki server
 # promtail_loki_url: http://loki-server:3100/loki/api/v1/push  # Uncomment and set if using Promtail
@@ -84,16 +83,7 @@ django_log_level: "{{ lookup('env', 'DJANGO_LOG_LEVEL') | default('INFO') }}"
 # Application Secrets (Optional - can be set via environment variables)
 # If not set, .env file will contain placeholders that need manual update
 # ============================================================================
-# secret_key: "{{ lookup('env', 'DJANGO_SECRET_KEY') }}"  # Uncomment to set
-# email_host: "{{ lookup('env', 'EMAIL_HOST') }}"
-# email_port: "{{ lookup('env', 'EMAIL_PORT') | default('25') }}"
-# email_user: "{{ lookup('env', 'EMAIL_USER') }}"
-# email_password: "{{ lookup('env', 'EMAIL_PASSWORD') }}"
-# sentry_dsn: "{{ lookup('env', 'SENTRY_DSN') }}"
-# celery_flower_user: "{{ lookup('env', 'CELERY_FLOWER_USER') | default('flower') }}"
-# celery_flower_password: "{{ lookup('env', 'CELERY_FLOWER_PASSWORD') }}"
-# caddy_password: "{{ lookup('env', 'CADDY_PASSWORD') }}"
-# vite_dev_server_host: "{{ lookup('env', 'VITE_DEV_SERVER_HOST') }}"
+django_secret_key: "{{ lookup('env', 'DJANGO_SECRET_KEY') | default('') }}"
 
 # ============================================================================
 # GitHub Actions Integration

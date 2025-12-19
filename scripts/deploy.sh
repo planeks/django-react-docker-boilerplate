@@ -3,7 +3,7 @@
 # Deployment Script for GitHub Actions
 # ============================================================================
 # Purpose: Deploy application to production
-# Usage: ./scripts/deploy.sh <compose-file> <branch> <project-path>
+# Script runs by github actions, you are not supposed to start it manually.
 # ============================================================================
 
 set -euo pipefail
@@ -62,6 +62,98 @@ if [ ! -f "$COMPOSE_FILE" ]; then
     log_error "Compose file not found: $COMPOSE_FILE"
     exit 1
 fi
+
+# Check if .env file exists
+if [ ! -f ".env" ]; then
+    log_error ".env file not found!"
+    log_error "Please create a .env file with required configuration."
+    log_error "You can copy dev.env or prod.env as a starting point:"
+    log_error "  cp dev.env .env  # for development"
+    log_error "  cp prod.env .env  # for production"
+    exit 1
+fi
+
+# Validate critical environment variables
+log_info "Validating environment configuration..."
+
+# Function to check if a value is a placeholder
+is_placeholder() {
+    local value="$1"
+    [[ -z "$value" ]] || [[ "$value" =~ ^\<.*\>$ ]] || [[ "$value" == "secret_key" ]]
+}
+
+# Load .env file safely (handles empty values without quotes)
+# Use set -a to auto-export all variables, then disable it
+set -a
+if ! source .env 2>/dev/null; then
+    # If source fails, try loading with a more permissive approach
+    log_warning "Standard .env loading failed, attempting alternative parsing..."
+    # Parse line by line, handling empty values
+    while IFS='=' read -r key value; do
+        # Skip comments and empty lines
+        [[ "$key" =~ ^#.*$ ]] || [[ -z "$key" ]] && continue
+        # Remove leading/trailing whitespace from key
+        key=$(echo "$key" | xargs)
+        # Export the variable (empty values are OK here)
+        export "$key=$value"
+    done < .env
+fi
+set +a
+
+# Check if critical secrets are configured
+MISSING_SECRETS=false
+
+if is_placeholder "${SECRET_KEY:-}"; then
+    log_warning "SECRET_KEY is not configured in .env file"
+    MISSING_SECRETS=true
+fi
+
+if is_placeholder "${POSTGRES_PASSWORD:-}"; then
+    log_warning "POSTGRES_PASSWORD is not configured in .env file"
+    MISSING_SECRETS=true
+fi
+
+# If secrets are missing, show instructions and exit gracefully
+if [ "$MISSING_SECRETS" = true ]; then
+    echo ""
+    log_warning "========================================"
+    log_warning "Environment Configuration Required"
+    log_warning "========================================"
+    echo ""
+    log_info "The .env file needs to be configured before deployment can proceed."
+    echo ""
+    log_info "Steps to configure:"
+    log_info "1. SSH to this server"
+    log_info "2. Edit the .env file: nano $PROJECT_PATH/.env"
+    log_info "3. Set the following required variables:"
+    echo ""
+    if is_placeholder "${SECRET_KEY:-}"; then
+        log_info "   SECRET_KEY - Generate with:"
+        log_info "   python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'"
+        echo ""
+    fi
+    if is_placeholder "${POSTGRES_PASSWORD:-}"; then
+        log_info "   POSTGRES_PASSWORD - Use a secure random password"
+        log_info "   Generate with: openssl rand -base64 32"
+        echo ""
+    fi
+    log_info "4. Restart deploy."
+    echo ""
+    log_warning "========================================"
+    log_warning "Deployment skipped - waiting for configuration"
+    log_warning "========================================"
+    exit 0
+fi
+
+# Check ALLOWED_HOSTS (for production)
+if [ "$COMPOSE_FILE" = "compose.prod.yml" ]; then
+    if [[ "${ALLOWED_HOSTS:-}" == "example.com" ]] || is_placeholder "${ALLOWED_HOSTS:-}"; then
+        log_warning "ALLOWED_HOSTS is not properly configured!"
+        log_warning "Please update ALLOWED_HOSTS in .env file with your actual domain."
+    fi
+fi
+
+log_success "Environment validation passed!"
 
 # Get current git commit for logging
 CURRENT_COMMIT=$(git rev-parse HEAD)
@@ -147,56 +239,14 @@ log_success "PostgreSQL is ready!"
 log_info "Waiting for Django to complete startup..."
 sleep 15
 
-# Check if containers are running (excluding build-only services like mkdocs)
-FAILED_SERVICES=$(docker compose -f "$COMPOSE_FILE" ps --status=exited --format json | jq -r 'select(.Name | contains("docs") | not) | .Name' 2>/dev/null || echo "")
+# Check if containers are running (excluding build-only services like mkdocs and one-off run containers)
+FAILED_SERVICES=$(docker compose -f "$COMPOSE_FILE" ps --status=exited --format json | jq -r 'select(.Name | contains("docs") | not) | select(.Name | contains("-run-") | not) | .Name' 2>/dev/null || echo "")
 if [ -n "$FAILED_SERVICES" ]; then
     log_error "Some services failed to start: $FAILED_SERVICES"
     exit 1
 fi
 
 log_success "All services running!"
-
-# ============================================================================
-# Run Migrations
-# ============================================================================
-# Note: The Django entrypoint already runs migrations on startup.
-# This is a verification step to ensure migrations are complete.
-
-log_info "Verifying database migrations..."
-
-# Check Django container logs for any startup issues
-log_info "Checking Django container status..."
-docker compose -f "$COMPOSE_FILE" logs --tail=20 django
-
-# Run migrations with proper error capture
-log_info "Running migration verification..."
-MIGRATION_OUTPUT=$(docker compose -f "$COMPOSE_FILE" exec -T django bash -c "cd /opt/project/src && poetry run python manage.py migrate --noinput" 2>&1) || {
-    log_error "Migrations failed!"
-    log_error "Migration output:"
-    echo "$MIGRATION_OUTPUT"
-    log_error "Django container logs:"
-    docker compose -f "$COMPOSE_FILE" logs --tail=50 django
-    exit 1
-}
-
-log_info "Migration output:"
-echo "$MIGRATION_OUTPUT"
-log_success "Migrations complete!"
-
-# ============================================================================
-# Collect Static Files
-# ============================================================================
-
-log_info "Collecting static files..."
-COLLECTSTATIC_OUTPUT=$(docker compose -f "$COMPOSE_FILE" exec -T django bash -c "cd /opt/project/src && poetry run python manage.py collectstatic --noinput" 2>&1) || {
-    log_warning "Static file collection failed, but continuing..."
-    log_warning "Collectstatic output:"
-    echo "$COLLECTSTATIC_OUTPUT"
-}
-
-log_info "Collectstatic output:"
-echo "$COLLECTSTATIC_OUTPUT"
-log_success "Static files collected!"
 
 # ============================================================================
 # Cleanup

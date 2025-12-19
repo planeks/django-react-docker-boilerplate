@@ -1,11 +1,6 @@
 ---
-# ============================================================================
-# Server Provisioning Playbook
-# ============================================================================
-# Purpose: Complete server infrastructure setup
-# Run once: When setting up a new server
-# Application deployment: Use GitHub Actions workflows
-# ============================================================================
+# Server provisioning playbook
+# Sets up complete server infrastructure
 
 - name: Provision Django servers
   hosts: all
@@ -19,13 +14,11 @@
     - name: Display provisioning information
       debug:
         msg: |
-          ========================================
-          Server Infrastructure Provisioning
-          ========================================
+          === Server Provisioning ===
           Server: {{ inventory_hostname }}
-          Environment: {{ deploy_env }}
-          Cloud Provider: {{ cloud_provider | default('generic') }}
-          ========================================
+          Env: {{ deploy_env }}
+          Provider: {{ cloud_provider | default('generic') }}
+          =========================
 
     - name: Update apt cache
       apt:
@@ -33,13 +26,12 @@
         cache_valid_time: 3600
       when: ansible_os_family == "Debian"
 
-    - name: Upgrade all packages (production only)
+    - name: Upgrade all packages
       apt:
         upgrade: dist
         autoremove: yes
       when:
         - ansible_os_family == "Debian"
-        - deploy_env == "production"
 
   roles:
     - role: common
@@ -102,25 +94,15 @@
     - name: Display provisioning summary
       debug:
         msg: |
-          ========================================
-          ✅ Server Provisioning Complete!
-          ========================================
-          Environment: {{ deploy_env }}
-          Hostname: {{ inventory_hostname }}
+          === ✅ Provisioning Complete ===
+          Env: {{ deploy_env }} | Host: {{ inventory_hostname }}
           Docker: {{ 'Running' if docker_status.status.ActiveState == 'active' else 'Not Running' }}
-          Firewall: Enabled (UFW)
-          SSL: {{ 'Configured' if domain_name is defined else 'Not Configured' }}
-          Monitoring: {{ 'Enabled' if enable_monitoring | default(true) else 'Disabled' }}
-          Reboot Required: {{ 'Yes' if reboot_required.stat.exists else 'No' }}
+          Firewall: Enabled | SSL: {{ 'Yes' if domain_name is defined else 'No' }}
+          Monitoring: {{ 'Yes' if enable_monitoring | default(true) else 'No' }}
+          Reboot: {{ 'Required' if reboot_required.stat.exists else 'Not needed' }}
 
-          Next Steps:
-          ──────────────────────────────────────
-          1. Verify GitHub Secrets are configured
-          2. Push to trigger deployment via GitHub Actions
-          3. Or deploy manually with scripts/deploy.sh
-
-          Documentation: docs/deployment.md
-          ========================================
+          Next: Configure GitHub Secrets & push to deploy
+          ==============================
 
     - name: Reboot server if required and authorized
       reboot:

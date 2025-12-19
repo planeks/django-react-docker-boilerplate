@@ -1,5 +1,6 @@
 ---
-- name: Remove nginx if installed (conflicts with Caddy on port 80/443)
+# Remove nginx (conflicts with Caddy on port 80/443)
+- name: Remove nginx if installed
   block:
     - name: Stop nginx service
       systemd:
@@ -10,23 +11,17 @@
 
     - name: Remove nginx packages
       apt:
-        name:
-          - nginx
-          - nginx-common
-          - nginx-core
+        name: [nginx, nginx-common, nginx-core]
         state: absent
         purge: yes
         autoremove: yes
       ignore_errors: yes
 
-    - name: Remove nginx configuration directories
+    - name: Remove nginx directories
       file:
         path: "{{ item }}"
         state: absent
-      loop:
-        - /etc/nginx
-        - /var/log/nginx
-        - /var/www/html
+      loop: [/etc/nginx, /var/log/nginx, /var/www/html]
       ignore_errors: yes
 
 - name: Install essential packages
@@ -76,6 +71,26 @@
     dest: /etc/fail2ban/jail.local
   notify: restart fail2ban
 
+- name: Create Caddy log directory
+  file:
+    path: /var/log/caddy
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+
+- name: Copy Caddy fail2ban filters
+  copy:
+    src: "{{ item }}"
+    dest: "/etc/fail2ban/filter.d/{{ item }}"
+    mode: '0644'
+  loop:
+    - caddy-http-auth.conf
+    - caddy-badbots.conf
+    - caddy-noscript.conf
+    - caddy-dos.conf
+  notify: restart fail2ban
+
 - name: Create application user if it doesn't exist
   user:
     name: "{{ app_user }}"
@@ -115,9 +130,10 @@
     groups: django
     append: yes
 
-- name: Generate SSH deploy key for git repository access
+# Generate SSH deploy key for git
+- name: Generate SSH deploy key
   block:
-    - name: Check if SSH key already exists
+    - name: Check if SSH key exists
       stat:
         path: "/home/{{ app_user }}/.ssh/id_rsa"
       register: ssh_key_check
@@ -131,7 +147,7 @@
         mode: '0700'
       when: not ssh_key_check.stat.exists
 
-    - name: Generate SSH key pair for deploy
+    - name: Generate SSH key pair
       openssh_keypair:
         path: "/home/{{ app_user }}/.ssh/id_rsa"
         type: rsa
@@ -148,26 +164,16 @@
       register: deploy_public_key
       when: generate_deploy_key | default(true)
 
-    - name: Display deploy key information
+    - name: Display deploy key
       debug:
         msg: |
-          ========================================
-          SSH Deploy Key Generated
-          ========================================
-          User: {{ app_user }}
+          === SSH Deploy Key ===
           Path: /home/{{ app_user }}/.ssh/id_rsa.pub
 
-          Public Key:
           {{ deploy_public_key.content | b64decode }}
 
-          Next Steps:
-          1. Copy the public key above
-          2. Add it to your Git repository:
-             - GitHub: Settings → Deploy keys → Add deploy key
-             - GitLab: Settings → Repository → Deploy keys
-             - Bitbucket: Settings → Access keys → Add key
-          3. Make sure to enable read-only access (recommended)
-          ========================================
+          Add to Git repo: Settings → Deploy keys
+          ======================
       when:
         - generate_deploy_key | default(true)
         - deploy_public_key is defined

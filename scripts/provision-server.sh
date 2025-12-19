@@ -1,218 +1,146 @@
 #!/bin/bash
-# Server Provisioning Script
-# Automates the complete setup of a new server from scratch
+# Server provisioning script
+## Execution order:
+### 1. Parse script arguments
+### 2. Load `../ansible/.env.ansible`
+### 3. Build ansible-playbook command with dynamic vars
+### 4. Setup GitHub Actions SSH key
+### 5. Auto-detect git repository info
+### 6. Finish building ansible command
+### 7. Execute ansible-playbook
+
 
 set -e
 
 CLOUD_PROVIDER=${1:-aws}
 ENVIRONMENT=${2:-production}
 SERVER_IP=${3}
-SSH_USER=${4:-}  # Optional: Override ANSIBLE_REMOTE_USER from .env.ansible
+SSH_USER=${4:-}
+SSH_KEY_PATH=${5:-}
 
 if [ -z "$SERVER_IP" ]; then
     echo "Usage: $0 <cloud_provider> <environment> <server_ip> [ssh_user]"
-    echo "Example: $0 aws production 192.168.1.100"
-    echo "Example: $0 aws production 192.168.1.100 ubuntu"
-    echo ""
-    echo "Note: ssh_user overrides ANSIBLE_REMOTE_USER from .env.ansible"
+    echo "Example: $0 aws production 192.168.0.1 ubuntu ~/.ssh/mykey.pem"
+    echo "Example: $0 digitalocean dev 192.168.0.1 root ~/.ssh/mykey.pem"
     exit 1
 fi
 
-echo "========================================="
-echo "SERVER PROVISIONING"
-echo "========================================="
-echo "Cloud Provider: $CLOUD_PROVIDER"
-echo "Environment: $ENVIRONMENT"
-echo "Server IP: $SERVER_IP"
-if [ -n "$SSH_USER" ]; then
-    echo "SSH User: $SSH_USER (from command line)"
-else
-    echo "SSH User: Will use ANSIBLE_REMOTE_USER from .env.ansible or default"
+if [ -n "$SSH_KEY_PATH" ] && [ ! -f "$SSH_KEY_PATH" ]; then
+    echo "Error: SSH key file not found: $SSH_KEY_PATH"
+    exit 1
 fi
-echo "========================================="
+
+echo "=== Server Provisioning ==="
+echo "Provider: $CLOUD_PROVIDER | Env: $ENVIRONMENT | IP: $SERVER_IP"
+[ -n "$SSH_USER" ] && echo "SSH User: $SSH_USER (override)" || echo "SSH User: from .env.ansible"
+[ -n "$SSH_KEY_PATH" ] && echo "SSH Key: $SSH_KEY_PATH (override)" || echo "SSH Key: default"
+echo "==========================="
 
 cd "$(dirname "$0")/../ansible" || exit 1
 
-# Load environment variables from .env.ansible if it exists
+# Clear previous log
+> ansible.log
+
+# Load .env.ansible
 if [ -f ".env.ansible" ]; then
-    echo -e "\n[Loading environment variables from .env.ansible]"
-    set -a  # Automatically export all variables
+    echo -e "\n Loading .env.ansible"
+    set -a
     source .env.ansible
     set +a
-    echo "✓ Environment variables loaded"
 else
-    echo -e "\n⚠ WARNING: .env.ansible not found"
-    echo "Create ansible/.env.ansible with required variables"
+    echo -e "\n Error: .env.ansible not found"
     echo "See ansible/.env.ansible.example for template"
-    echo ""
-    echo "Provisioning cancelled."
     exit 1
 fi
 
-# Run provisioning playbook
-echo -e "\nStarting server provisioning..."
-
-# Build ansible-playbook command
+# Build ansible pipeline
+echo -e "\n Building ansible command..."
 ANSIBLE_CMD="ansible-playbook -i $SERVER_IP,"
+[ -n "$SSH_KEY_PATH" ] && ANSIBLE_CMD="$ANSIBLE_CMD --private-key='${SSH_KEY_PATH}'"
 ANSIBLE_CMD="$ANSIBLE_CMD -e deploy_env=${ENVIRONMENT}"
 ANSIBLE_CMD="$ANSIBLE_CMD -e cloud_provider=${CLOUD_PROVIDER}"
 ANSIBLE_CMD="$ANSIBLE_CMD -e auto_reboot=false"
 ANSIBLE_CMD="$ANSIBLE_CMD -e deploy_app=true"
 
-# Pass critical environment variables as extra vars (since group_vars won't load with comma-separated inventory)
-if [ -n "$APP_USER" ]; then
-    ANSIBLE_CMD="$ANSIBLE_CMD -e app_user='${APP_USER}'"
-    echo "→ Using APP_USER: $APP_USER"
-fi
+# Pass critical vars (group_vars don't load with comma-separated inventory)
+[ -n "$APP_USER" ] && ANSIBLE_CMD="$ANSIBLE_CMD -e app_user='${APP_USER}'"
+[ -n "$ANSIBLE_REMOTE_USER" ] && ANSIBLE_CMD="$ANSIBLE_CMD -e ansible_user='${ANSIBLE_REMOTE_USER}'"
+[ -n "$SSH_USER" ] && ANSIBLE_CMD="$ANSIBLE_CMD -e ansible_user='${SSH_USER}'"
 
-if [ -n "$ANSIBLE_REMOTE_USER" ]; then
-    ANSIBLE_CMD="$ANSIBLE_CMD -e ansible_user='${ANSIBLE_REMOTE_USER}'"
-    echo "→ Using ANSIBLE_REMOTE_USER: $ANSIBLE_REMOTE_USER"
-fi
-
-# Override ansible_user if SSH_USER is provided from command line
-if [ -n "$SSH_USER" ]; then
-    ANSIBLE_CMD="$ANSIBLE_CMD -e ansible_user='${SSH_USER}'"
-    echo "→ Overriding SSH user with: $SSH_USER"
-fi
-
-# Handle GitHub Actions SSH key - auto-generate if not provided
-echo -e "\n[GitHub Actions SSH Key Setup]"
+# GitHub Actions SSH key setup
+echo -e "\n GitHub Actions SSH key"
 SSH_KEY_DIR="$HOME/.ssh"
 SSH_KEY_FILE="$SSH_KEY_DIR/github_actions"
 
 if [ -z "$GITHUB_ACTIONS_SSH_KEY" ]; then
-    echo "GITHUB_ACTIONS_SSH_KEY not set in .env.ansible"
-
-    # Check if key already exists
     if [ -f "$SSH_KEY_FILE.pub" ]; then
-        echo "✓ Found existing key at $SSH_KEY_FILE.pub"
-        echo "→ Using existing SSH key for GitHub Actions"
+        echo "Using existing key: $SSH_KEY_FILE.pub"
         GITHUB_ACTIONS_SSH_KEY=$(cat "$SSH_KEY_FILE.pub" | tr -d '\n' | xargs)
     else
-        echo "→ Generating new SSH key pair for GitHub Actions..."
+        echo "Generating new key..."
         mkdir -p "$SSH_KEY_DIR"
         ssh-keygen -t ed25519 -C "github-actions" -f "$SSH_KEY_FILE" -N "" -q
-        echo "✓ Generated new SSH key pair at $SSH_KEY_FILE"
         GITHUB_ACTIONS_SSH_KEY=$(cat "$SSH_KEY_FILE.pub" | tr -d '\n' | xargs)
+        echo "Generated: $SSH_KEY_FILE"
     fi
-
-    # Export for use in this session
     export GITHUB_ACTIONS_SSH_KEY
 
     echo ""
-    echo "========================================="
-    echo "⚠️  IMPORTANT: GitHub Secret Required"
-    echo "========================================="
-    echo ""
-    echo "Add this PRIVATE key to GitHub Secrets:"
-    echo "Repository: Settings > Secrets and variables > Actions"
-    echo "Secret name: PROD_SSH_KEY"
-    echo ""
-    echo "Private key location: $SSH_KEY_FILE"
-    echo ""
-    echo "To view the private key:"
-    echo "  cat $SSH_KEY_FILE"
-    echo ""
-    echo "To copy to clipboard (if xclip installed):"
-    echo "  cat $SSH_KEY_FILE | xclip -selection clipboard"
-    echo "========================================="
+    echo "  Add private key to GitHub Secrets:"
+    echo "  Repository Settings > Secrets > Actions"
+    echo "  Secret name: PROD_SSH_KEY"
+    echo "  Key location: $SSH_KEY_FILE"
     echo ""
 else
-    echo "✓ GITHUB_ACTIONS_SSH_KEY is set (length: ${#GITHUB_ACTIONS_SSH_KEY})"
-    # Ensure it's exported even if loaded from .env.ansible
+    echo "Key loaded from .env.ansible"
     export GITHUB_ACTIONS_SSH_KEY
 fi
 
-# ============================================================================
-# Auto-detect Git Repository Configuration
-# ============================================================================
-# If GIT_REPO_URL is not set in environment, auto-detect from current repository
-# This allows deployment to work out of the box when run from within a git repo
-
-echo -e "\n[Git Repository Configuration]"
-
-if [ -z "$GIT_REPO_URL" ]; then
-    # Try to auto-detect from git remote
-    if git remote get-url origin &>/dev/null; then
-        DETECTED_URL=$(git remote get-url origin 2>/dev/null | sed -E 's#.*/git/([^/]+/[^/]+).*#git@github.com:\1.git#')
-        if [ -n "$DETECTED_URL" ] && [[ "$DETECTED_URL" =~ ^git@github\.com:.+\.git$ ]]; then
-            GIT_REPO_URL="$DETECTED_URL"
-            echo "→ Auto-detected GIT_REPO_URL: $GIT_REPO_URL"
-        else
-            echo "⚠ Could not auto-detect valid GitHub URL from git remote"
-        fi
-    else
-        echo "⚠ Not in a git repository, skipping auto-detection"
-    fi
+# Auto-detect git repository
+echo -e "\n Git repository configuration"
+if [ -z "$GIT_REPO_URL" ] && git remote get-url origin &>/dev/null; then
+    DETECTED_URL=$(git remote get-url origin 2>/dev/null | sed -E 's#.*/git/([^/]+/[^/]+).*#git@github.com:\1.git#')
+    [[ "$DETECTED_URL" =~ ^git@github\.com:.+\.git$ ]] && GIT_REPO_URL="$DETECTED_URL"
 fi
 
-if [ -z "$GIT_BRANCH" ]; then
-    # Try to auto-detect current branch
-    if git rev-parse --abbrev-ref HEAD &>/dev/null; then
-        GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
-        echo "→ Auto-detected GIT_BRANCH: $GIT_BRANCH"
-    else
-        GIT_BRANCH="main"
-        echo "→ Using default GIT_BRANCH: $GIT_BRANCH"
-    fi
+if [ -z "$GIT_BRANCH" ] && git rev-parse --abbrev-ref HEAD &>/dev/null; then
+    GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
 fi
+GIT_BRANCH=${GIT_BRANCH:-main}
 
-# Display final git configuration
 if [ -n "$GIT_REPO_URL" ]; then
-    echo "✓ Repository URL: $GIT_REPO_URL"
-    echo "✓ Branch: $GIT_BRANCH"
-    echo "→ Application will be deployed during provisioning"
+    echo "Repo: $GIT_REPO_URL"
+    echo "Branch: $GIT_BRANCH"
 else
-    echo "⚠ GIT_REPO_URL not configured"
-    echo "→ Server will be provisioned but app deployment will be skipped"
-    echo "→ Set GIT_REPO_URL in .env.ansible or run from within git repository"
+    echo "No GIT_REPO_URL - app deployment will be skipped"
 fi
 
-# ============================================================================
-# Pass Environment Variables to Ansible
-# ============================================================================
-
-echo -e "\n[Checking other environment variables]"
+# Pass environment vars to Ansible
+echo -e "\nPassing variables to Ansible"
 for var in DOMAIN_NAME SSL_EMAIL DB_PASSWORD GIT_REPO_URL GIT_BRANCH PROJECT_NAME; do
     if [ -n "${!var}" ]; then
-        echo "✓ $var is set"
-    fi
-done
-
-echo -e "\n[Passing variables to Ansible]"
-for var in DOMAIN_NAME SSL_EMAIL DB_PASSWORD GIT_REPO_URL GIT_BRANCH PROJECT_NAME; do
-    if [ -n "${!var}" ]; then
-        # Convert to lowercase with underscores for Ansible variable names
         ansible_var=$(echo "$var" | tr '[:upper:]' '[:lower:]')
         ANSIBLE_CMD="$ANSIBLE_CMD -e ${ansible_var}='${!var}'"
+    else
+        echo "$var - not provided. Update ansible/.env.ansible."
+        exit 1
     fi
 done
-
-# Note: GITHUB_ACTIONS_SSH_KEY is passed via environment variable (exported above)
-# to avoid shell quoting issues with long strings containing spaces
 
 ANSIBLE_CMD="$ANSIBLE_CMD playbooks/provision.yml"
 
-# Display command (mask sensitive values)
-echo -e "\n[Ansible Command]"
+# Display masked command
 MASKED_CMD=$(echo "$ANSIBLE_CMD" | sed -E "s/(db_password)='[^']*'/\1='***'/g")
 echo "$MASKED_CMD"
-echo ""
-echo "Note: GITHUB_ACTIONS_SSH_KEY is passed via environment (not shown)"
+echo "(GITHUB_ACTIONS_SSH_KEY passed via environment)"
 
-# Execute the command
+# Execute
+echo ""
 eval $ANSIBLE_CMD
 
-echo -e "\n========================================="
-echo "✅ Provisioning complete!"
-echo "========================================="
-echo ""
+echo -e "\n=== ✅ Provisioning Complete ==="
 echo "Next steps:"
-echo "1. Review the provisioning summary above"
-echo "2. If application was deployed, verify it's running:"
-echo "   - Visit: http://$SERVER_IP"
-echo "   - Check logs: ssh $SSH_USER@$SERVER_IP 'cd ~/projects/django_app && docker compose logs'"
-echo "3. If reboot is required, manually reboot the server"
-echo "4. Run security-updates.yml for the latest patches"
+echo "1. Review provisioning summary above"
+echo "2. Verify app: http://$SERVER_IP"
+echo "3. Reboot if required"
 echo ""

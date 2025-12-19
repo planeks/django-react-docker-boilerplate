@@ -129,6 +129,8 @@ services:
       - "443:443"
     volumes:
       - dev_caddy:/data
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile
+      - /var/log/caddy:/var/log/caddy
     env_file:
       - ./.env
     depends_on:

@@ -12,21 +12,32 @@ port = ssh
 logpath = %(sshd_log)s
 backend = %(sshd_backend)s
 
-[nginx-http-auth]
+[caddy-http-auth]
 enabled = true
-filter = nginx-http-auth
+filter = caddy-http-auth
 port = http,https
-logpath = /var/log/nginx/error.log
+logpath = /var/log/caddy/access.log
+maxretry = 3
 
-[nginx-noscript]
+[caddy-badbots]
 enabled = true
+filter = caddy-badbots
 port = http,https
-filter = nginx-noscript
-logpath = /var/log/nginx/access.log
-
-[nginx-badbots]
-enabled = true
-port = http,https
-filter = nginx-badbots
-logpath = /var/log/nginx/access.log
+logpath = /var/log/caddy/access.log
 maxretry = 2
+
+[caddy-noscript]
+enabled = true
+filter = caddy-noscript
+port = http,https
+logpath = /var/log/caddy/access.log
+maxretry = 3
+
+[caddy-dos]
+enabled = true
+filter = caddy-dos
+port = http,https
+logpath = /var/log/caddy/access.log
+maxretry = 100
+findtime = 60
+bantime = 600

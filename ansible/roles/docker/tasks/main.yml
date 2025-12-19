@@ -1,11 +1,7 @@
 ---
 - name: Install Docker dependencies
   apt:
-    name:
-      - apt-transport-https
-      - ca-certificates
-      - gnupg
-      - lsb-release
+    name: [apt-transport-https, ca-certificates, gnupg, lsb-release]
     state: present
 
 - name: Create keyrings directory
@@ -27,11 +23,7 @@
 
 - name: Install Docker
   apt:
-    name:
-      - docker-ce
-      - docker-ce-cli
-      - containerd.io
-      - docker-compose-plugin
+    name: [docker-ce, docker-ce-cli, containerd.io, docker-compose-plugin]
     state: present
 
 - name: Configure Docker daemon with journald logging

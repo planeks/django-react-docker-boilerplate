@@ -365,15 +365,70 @@ You can monitor:
 
 ### Troubleshooting
 
+#### Django Container Fails to Start
+
+**Symptoms:**
+- Deployment script reports: `[ERROR] Some services failed to start: django_app-django-run-*`
+- Django container exits immediately after starting
+
+**Common Causes:**
+
+1. **Missing or Invalid `.env` File**
+
+   The deployment script now validates the `.env` file before deploying. If you see errors like:
+   ```
+   [ERROR] .env file not found!
+   [ERROR] SECRET_KEY is not configured in .env file!
+   [ERROR] POSTGRES_PASSWORD is not configured in .env file!
+   ```
+
+   **Solution:**
+   - Ensure the `.env` file exists on the server
+   - Copy from template: `cp prod.env .env` or `cp dev.env .env`
+   - Fill in all required values (see below)
+
+2. **Placeholder Values in .env**
+
+   The `.env` file must not contain placeholder values like `<secret_key>` or empty values for required fields.
+
+   **Required values that must be set:**
+   - `SECRET_KEY` - Generate with: `python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'`
+   - `POSTGRES_PASSWORD` - Set a secure database password
+   - `ALLOWED_HOSTS` - Your actual domain (not `example.com`)
+
+   **Example of fixing the .env file:**
+   ```bash
+   # SSH into the server
+   ssh appuser@your-server
+
+   # Navigate to project directory
+   cd ~/projects/django_app
+
+   # Edit .env file
+   nano .env
+
+   # Update these critical values:
+   # SECRET_KEY=your-generated-secret-key-here
+   # POSTGRES_PASSWORD=your-secure-password-here
+   # ALLOWED_HOSTS=yourdomain.com
+
+   # Save and retry deployment
+   ./scripts/deploy.sh compose.dev.yml main ~/projects/django_app
+   ```
+
+#### General Deployment Failures
+
 If a deployment fails:
 1. Check the workflow logs in the **Actions** tab
-2. SSH into the server and check:
+2. SSH into the server and check container logs:
    ```bash
    cd ~/projects/django-react-docker-boilerplate
-   docker compose -f compose.prod.yml logs
+   docker compose -f compose.prod.yml logs django
+   docker compose -f compose.prod.yml ps -a
    ```
 3. Verify secrets are correctly set in GitHub
 4. Ensure server has proper permissions and resources
+5. Check that all required environment variables are set in `.env`
 
 ## Security Best Practices
 
