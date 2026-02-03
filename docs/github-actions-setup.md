@@ -321,6 +321,5 @@ After provisioning and configuring secrets, these workflows will work automatica
 ---
 
 **Related Documentation:**
-- [Infrastructure Documentation](infrastructure.md)
-- [Deployment Guide](deployment.md)
-- [Disaster Recovery](infrastructure.md#disaster-recovery)
+- [Manual Deployment Guide](deployment_manual.md)
+- [Automated Deployment Guide](deployment_automated.md)

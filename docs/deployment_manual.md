@@ -155,7 +155,7 @@ $ git clone <git_remote_url>
 Go inside the project directory and do the next to create initial volumes:
 
 ```bash
-$ source ./init_production_volumes.sh
+$ source ./scripts/init_production_volumes.sh
 ```
 
 Then you need to create the `.env` file with proper settings. You can use the `prod.env` as a template to create it

@@ -6,7 +6,7 @@ of PyCharm.
 Go to `Preferences` -> `Project` -> `Python Interpreter`. Click the gear icon
 and select the `Add...` item.
 
-Select `Docker Compose` and specify your configuration file (`local.yml`) and
+Select `Docker Compose` and specify your configuration file (`compose.dev.yml`) and
 the particular service.
 
 ![Add Python Interpreter](readme_images/add-remote-interpreter.jpg)

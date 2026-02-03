@@ -11,7 +11,7 @@ Create `.devcontainer/devcontainer.json` in your project root:
 ```json
 {
   "name": "Django Full Stack Development",
-  "dockerComposeFile": "../local.yml",
+  "dockerComposeFile": "../compose.dev.yml",
   "service": "django",
   "workspaceFolder": "/opt/project/src",
 
@@ -100,7 +100,7 @@ Create `.devcontainer/devcontainer.json` in your project root:
 ```
 
 **Key Configuration Details:**
-- `dockerComposeFile`: Relative path from `.devcontainer` folder to your `local.yml`
+- `dockerComposeFile`: Relative path from `.devcontainer` folder to your `compose.dev.yml`
 - `service`: Specifies which container becomes your development environment (Django in this case)
 - `workspaceFolder`: The folder that opens inside the container
 - `runServices`: All services that should start when opening the container
@@ -522,10 +522,10 @@ Create `.vscode/tasks.json`:
     {
       "label": "Docker: Rebuild All Services",
       "type": "shell",
-      "command": "docker-compose",
+      "command": "docker compose",
       "args": [
         "-f",
-        "../local.yml",
+        "../compose.dev.yml",
         "up",
         "-d",
         "--build"
@@ -535,10 +535,10 @@ Create `.vscode/tasks.json`:
     {
       "label": "Docker: Stop All Services",
       "type": "shell",
-      "command": "docker-compose",
+      "command": "docker compose",
       "args": [
         "-f",
-        "../local.yml",
+        "../compose.dev.yml",
         "down"
       ],
       "problemMatcher": []
@@ -546,10 +546,10 @@ Create `.vscode/tasks.json`:
     {
       "label": "Docker: View Logs",
       "type": "shell",
-      "command": "docker-compose",
+      "command": "docker compose",
       "args": [
         "-f",
-        "../local.yml",
+        "../compose.dev.yml",
         "logs",
         "-f"
       ],
@@ -601,7 +601,7 @@ Create `.vscode/tasks.json`:
 
 4. **Verify Services are Running**:
    ```bash
-   docker-compose -f local.yml ps
+   docker compose -f compose.dev.yml ps
    ```
 
 ### Quick Access URLs
@@ -669,32 +669,32 @@ pytest tests/ --cov=. --cov-report=html
 python manage.py shell_plus
 
 # Access PostgreSQL directly
-docker-compose -f local.yml exec postgres psql -U <POSTGRES_USER> -d <POSTGRES_DB>
+docker compose -f compose.dev.yml exec postgres psql -U <POSTGRES_USER> -d <POSTGRES_DB>
 ```
 
 ### Viewing Logs
 
 **Individual Service:**
 ```bash
-docker-compose -f local.yml logs -f django
-docker-compose -f local.yml logs -f celeryworker
+docker compose -f compose.dev.yml logs -f django
+docker compose -f compose.dev.yml logs -f celeryworker
 ```
 
 **All Services:**
 - Use Task: "Docker: View Logs"
-- Or terminal: `docker-compose -f local.yml logs -f`
+- Or terminal: `docker compose -f compose.dev.yml logs -f`
 
 ### Rebuilding Services
 
 **When Dockerfile changes:**
 ```bash
-docker-compose -f local.yml up -d --build
+docker compose -f compose.dev.yml up -d --build
 ```
 
 **Complete rebuild:**
 ```bash
-docker-compose -f local.yml down -v
-docker-compose -f local.yml up -d --build
+docker compose -f compose.dev.yml down -v
+docker compose -f compose.dev.yml up -d --build
 ```
 
 ---
@@ -710,14 +710,14 @@ docker ps
 
 **View container logs:**
 ```bash
-docker-compose -f local.yml logs django
+docker compose -f compose.dev.yml logs django
 ```
 
 **Rebuild from scratch:**
 ```bash
-docker-compose -f local.yml down -v
-docker-compose -f local.yml build --no-cache
-docker-compose -f local.yml up -d
+docker compose -f compose.dev.yml down -v
+docker compose -f compose.dev.yml build --no-cache
+docker compose -f compose.dev.yml up -d
 ```
 
 ### Python Interpreter Not Found
@@ -749,7 +749,7 @@ taskkill /PID <PID> /F
 
 **Ensure PostgreSQL is ready:**
 ```bash
-docker-compose -f local.yml exec postgres pg_isready
+docker compose -f compose.dev.yml exec postgres pg_isready
 ```
 
 **Check environment variables:**
@@ -760,8 +760,8 @@ echo $POSTGRES_USER
 
 **Reset database:**
 ```bash
-docker-compose -f local.yml down -v
-docker-compose -f local.yml up -d postgres
+docker compose -f compose.dev.yml down -v
+docker compose -f compose.dev.yml up -d postgres
 python manage.py migrate
 ```
 
@@ -769,13 +769,13 @@ python manage.py migrate
 
 **Check Redis connection:**
 ```bash
-docker-compose -f local.yml exec redis redis-cli ping
+docker compose -f compose.dev.yml exec redis redis-cli ping
 # Should return: PONG
 ```
 
 **Restart Celery services:**
 ```bash
-docker-compose -f local.yml restart celeryworker celerybeat
+docker compose -f compose.dev.yml restart celeryworker celerybeat
 ```
 
 **View Flower dashboard:**
@@ -790,7 +790,7 @@ docker-compose -f local.yml restart celeryworker celerybeat
 
 To enable Caddy reverse proxy:
 ```bash
-docker-compose -f local.yml --profile dev up -d
+docker compose -f compose.dev.yml --profile dev up -d
 ```
 
 Access services through Caddy:
