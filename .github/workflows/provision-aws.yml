@@ -63,12 +63,4 @@ jobs:
             -e "git_branch=${{ github.ref_name }}" \
             playbooks/provision.yml
 
-      - name: Deploy Django application
-        env:
-          ANSIBLE_HOST_KEY_CHECKING: 'False'
-        run: |
-          cd ansible
-          ansible-playbook -i inventory/aws.yml \
-            --private-key /tmp/ssh_key \
-            -e "deploy_env=${{ github.event.inputs.environment }}" \
-            playbooks/deploy-django.yml
+

@@ -55,13 +55,4 @@ jobs:
             -e "git_branch=${{ github.ref_name }}" \
             playbooks/provision.yml
 
-      - name: Deploy Django application
-        env:
-          ANSIBLE_HOST_KEY_CHECKING: 'False'
-          DO_API_TOKEN: ${{ secrets.DO_API_TOKEN }}
-        run: |
-          cd ansible
-          ansible-playbook -i inventory/digitalocean.yml \
-            --private-key /tmp/ssh_key \
-            -e "deploy_env=${{ github.event.inputs.environment }}" \
-            playbooks/deploy-django.yml
+
