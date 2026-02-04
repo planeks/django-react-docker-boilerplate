@@ -56,6 +56,10 @@
       tags: [github, deployment, ci]
       when: setup_github_actions | default(true)
 
+    - role: backup
+      tags: [backup, cron]
+      when: deploy_env == 'production'
+
   post_tasks:
     - name: Create data directories for Docker volumes
       file:
