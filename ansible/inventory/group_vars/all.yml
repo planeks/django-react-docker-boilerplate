@@ -60,9 +60,7 @@ install_promtail: false  # Set to true if you have a Loki server
 
 # ============================================================================
 # Backup Configuration
-# S3/Spaces bucket for database and media backups
 # ============================================================================
-backup_bucket: "{{ project_name }}-backups-{{ cloud_provider }}"
 backup_retention_days: 30
 
 # ============================================================================
@@ -104,11 +102,4 @@ cleanup_images: true  # Clean up old Docker images
 auto_reboot: false  # Automatically reboot after kernel updates (use with caution)
 force_env_update: false  # Force update .env file even if it exists
 
-# ============================================================================
-# Disaster Recovery Configuration
-# ============================================================================
-dr_target_minutes: 30  # Target time for full restoration (compliance metric)
-restore_media: true  # Restore media files during disaster recovery
-create_safety_backup: true  # Create backup of current state before restoration
-enforce_target: false  # Fail if DR takes longer than target (strict compliance)
-cleanup_temp_files: true  # Clean up temporary files after DR drill
+
