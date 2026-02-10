@@ -9,7 +9,7 @@ ansible_python_interpreter: /usr/bin/python3
 # ============================================================================
 # Project Configuration
 # ============================================================================
-project_name: django_app
+project_name: "{{ lookup('env', 'PROJECT_NAME') | default('django_app') }}"
 
 # Application user - the non-root user that owns the application files
 # This can be the same as ansible_user (e.g., 'ubuntu' on AWS) or different (e.g., 'appuser')

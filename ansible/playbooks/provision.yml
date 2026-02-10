@@ -1,8 +1,10 @@
 ---
 # Server provisioning playbook
 # Sets up complete server infrastructure
+# Split into two plays so that the SSH connection is reset after Docker install,
+# ensuring the app user's docker group membership is active for deployment.
 
-- name: Provision Django servers
+- name: Provision Django servers - system setup
   hosts: all
   become: yes
 
@@ -23,7 +25,6 @@
     - name: Update apt cache
       apt:
         update_cache: yes
-        cache_valid_time: 3600
       when: ansible_os_family == "Debian"
 
     - name: Upgrade all packages
@@ -40,6 +41,16 @@
     - role: docker
       tags: [docker]
 
+- name: Provision Django servers - application setup
+  hosts: all
+  become: yes
+
+  pre_tasks:
+    - name: Set environment facts
+      set_fact:
+        deploy_env: "{{ deploy_env | default('production') }}"
+
+  roles:
     - role: aws_security
       tags: [aws, security, cloud]
       when: cloud_provider == 'aws'
@@ -98,7 +109,7 @@
     - name: Display provisioning summary
       debug:
         msg: |
-          === ✅ Provisioning Complete ===
+          === Provisioning Complete ===
           Env: {{ deploy_env }} | Host: {{ inventory_hostname }}
           Docker: {{ 'Running' if docker_status.status.ActiveState == 'active' else 'Not Running' }}
           Firewall: Enabled | SSL: {{ 'Yes' if domain_name is defined else 'No' }}

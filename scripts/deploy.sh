@@ -19,6 +19,7 @@ NC='\033[0m' # No Color
 COMPOSE_FILE="${1:-compose.prod.yml}"
 BRANCH="${2:-main}"
 PROJECT_PATH="${3:-$(pwd)}"
+PROJECT_PATH="${PROJECT_PATH/#\~/$HOME}"
 
 # ============================================================================
 # Helper Functions

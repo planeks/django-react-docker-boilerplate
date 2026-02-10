@@ -23,4 +23,5 @@ __pycache__
 /upgrade_project.sh
 /ngrok
 .DS_Store
-/ansible/.env.ansible
+ansible/.env.ansible
+/backups/*

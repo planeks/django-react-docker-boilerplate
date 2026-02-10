@@ -1,94 +1,85 @@
-## 🖥️ Deploying the project to the server
+## Deploying the project to the server
 
-📌 Modify this section according to the project needs.
+Modify this section according to the project needs.
 
 ### Configure main user
 
-We strongly recommend deploying the project with an unprivileged user instead of `root`.
+Deploy the project with an unprivileged user instead of `root`.
 
-> The next paragraph describes how to create new unprivileged users to the system. If you use AWS EC2 for example, it is possible that you already have such kind of user in your system by default. It can be named `ubuntu`. If such a user already exists you do not need to create another one.
+> On AWS EC2, you already have an unprivileged user called `ubuntu` by default. If that user exists, you don't need to create another one.
 
-You can create the user (for example `appuser`) with the following command:
+You can create a user (for example `appuser`) with:
 
 ```shell
 $ adduser appuser
 ```
 
-You will be asked for the password for the user. You can use [https://www.random.org/passwords/](https://www.random.org/passwords/) to generate new passwords.
+You will be asked for a password. You can use [https://www.random.org/passwords/](https://www.random.org/passwords/) to generate one.
 
-Add the new user `appuser` to the `sudo` group:
+Add the new user to the `sudo` group:
 
 ```bash
 $ usermod -aG sudo appuser
 ```
 
-Now the user can run a command with superuser privileges if it is necessary.
-
-Usually, you shouldn't log in to the server with a password.
-You should use the ssh key. If you don't have one yet you can create
-it easily on your local computer with the following command:
+Set up SSH key authentication. If you don't have a key yet, create one on your local machine:
 
 ```bash
 $ ssh-keygen -t rsa
 ```
 
-> The command works on Linux and Mac OS. If you are using Windows you can use
-> PuTTYgen to generate the key.
+> This works on Linux and Mac OS. On Windows, use PuTTYgen.
 
-You can find the content of your public key with the next command:
+Get your public key:
 
 ```bash
 $ cat ~/.ssh/id_rsa.pub
 ```
 
-Now, go to the server and temporarily switch to the new user:
+On the server, switch to the new user:
 
 ```bash
 $ su - appuser
 ```
 
-Now you will be in your new user's home directory.
-
-Create a new directory called `.ssh` and restrict its permissions with the following commands:
+Create the `.ssh` directory and set permissions:
 
 ```bash
 $ mkdir ~/.ssh
 $ chmod 700 ~/.ssh
 ```
 
-Now open a file in `.ssh` called `authorized_keys` with a text editor. We will use `nano` to edit the file:
+Open `authorized_keys` in a text editor:
 
 ```bash
 $ nano ~/.ssh/authorized_keys
 ```
 
-> If your server installation does not contain `nano` then you can use `vi`. Just remember `vi` has different modes for editing text and running commands. Use `i` key to switch to the *insert mode*, insert enough text, and then use `Esc` to switch back to the *command mode*. Press `:` to activate the command line and type `wq` command to save file and exit. If you want to exit without saving the file just use `q!` command.
+> If `nano` is not installed, use `vi`. Press `i` to enter insert mode, paste your key, then press `Esc` followed by `:wq` to save and exit. Use `:q!` to exit without saving.
 
-Now insert your public key (which should be in your clipboard) by pasting it into the editor. Hit `CTRL-x` to exit the file, then `y` to save the changes that you made, then `ENTER` to confirm the file name (in the case if you use `nano` of course).
+Paste your public key into the file, save, and close.
 
-Now restrict the permissions of the `authorized_keys` file with this command:
+Set permissions on the file:
 
 ```bash
 $ chmod 600 ~/.ssh/authorized_keys
 ```
 
-Type this command once to return to the root user:
+Return to root:
 
 ```bash
 $ exit
 ```
 
-Now your public key is installed, and you can use SSH keys to log in as your user.
-
-Type `exit` again to logout from `the` server console and try to log in again as `appuser` and test the key based login:
+Log out of the server and test key-based login:
 
 ```bash
 $ ssh appuser@XXX.XXX.XXX.XXX
 ```
 
-If you added public key authentication to your user, as described above, your private key will be used as authentication. Otherwise, you will be prompted for your user's password.
+If you added the public key correctly, it will authenticate without a password.
 
-Remember, if you need to run a command with root privileges, type `sudo` before it like this:
+To run commands with root privileges:
 
 ```bash
 $ sudo command_to_run
@@ -96,29 +87,29 @@ $ sudo command_to_run
 
 ### Install dependencies
 
-We also recommend to install a necessary software:
+Install required packages:
 
 ```bash
 $ sudo apt install -y git wget tmux htop mc nano build-essential
 ```
 
-🐳 Install Docker and Docker Compose as it was described above.
+Install Docker and Docker Compose (see Docker's official docs).
 
-And add your user to the group:
+Add your user to the docker group:
 
 ```bash
 $ sudo usermod -aG docker "$USER"
 ```
 
-Create a new group on the host machine with `gid 1024` . It will be important for allowing to setup correct non-root permissions to the volumes.
+Create the `django` group with GID 1024. This is used for non-root volume permissions.
 
 ```bash
 $ sudo addgroup --gid 1024 django
 ```
 
-> NOTE. If you cannot use the GID 1024 for any reason, you can choose other value but edit the `Dockerfile` as well.
+> If GID 1024 is unavailable, pick a different value and update the `Dockerfile` to match.
 
-And add your user to the group:
+Add your user to the group:
 
 ```bash
 $ sudo usermod -aG django ${USER}
@@ -127,8 +118,7 @@ $ newgrp django
 
 ### Generate deploy key
 
-Now, we need to create SSH key for deploy code from the remote repository
-(if you use GitHub, Bitbucket, GitLub, etc.).
+Create an SSH key on the server for pulling code from the remote repository:
 
     $ ssh-keygen -t rsa
 
@@ -136,13 +126,13 @@ Show the public key:
 
     $ cat ~/.ssh/id_rsa.pub
 
-Then go to the project's settings of your project on source code hosting (if you use Bitbucket than go to "Access keys" section, if GitHub than search "Deploy keys" section) and add the key there.
+Add this key to your repository's deploy keys (on GitHub: Settings > Deploy keys).
 
-> It is a list of keys which allows the read-only access to the repository. It is very important that such kind of keys does not affect our user quota. Also, it allows doing not use the keys of our developers.
+> Deploy keys grant read-only access to the repository and don't count against your user quota.
 
 ### Clone the project
 
-Create the directory for projects and clone the source code:
+Create the directory and clone:
 
 ```bash
 $ mkdir ~/projects
@@ -150,21 +140,21 @@ $ cd ~/projects
 $ git clone <git_remote_url>
 ```
 
-📌 Use your own correct Git remote directory URL.
+Use your actual git remote URL.
 
-Go inside the project directory and do the next to create initial volumes:
+Go into the project directory and create initial volumes:
 
 ```bash
 $ source ./scripts/init_production_volumes.sh
 ```
 
-Then you need to create the `.env` file with proper settings. You can use the `prod.env` as a template to create it
+Create the `.env` file from the production template:
 
 ```shell
 $ cp prod.env .env
 ```
 
-Open the `.env` file in your editor and change the settings as you need:
+Open `.env` and fill in the values:
 
 ```shell
 PYTHONENCODING=utf8
@@ -192,27 +182,22 @@ CELERY_FLOWER_PASSWORD=<flower_password>
 CADDY_PASSWORD=<here should be hash of a password>
 ```
 
-> ⚠️ Generate strong secret key and passwords. It is very important.
+> Generate strong values for `SECRET_KEY` and all passwords.
 
-Change the necessary settings. Please check the `ALLOWED_HOSTS` settings that should
-contain the correct domain name. Also, you need to change the `SITE_DOMAIN` value that is using with configuring Caddy. It should be the value of the site domain. The value `COMPOSE_IMAGES_PREFIX` can be the same as for `dev` configuration. It is a prefix for the container images.
+Set `ALLOWED_HOSTS` and `SITE_DOMAIN` to your actual domain. `COMPOSE_IMAGES_PREFIX` is a prefix for container images and can match your dev configuration.
 
-Now you can run the containers:
+Build and start:
 
 ```bash
 $ docker compose -f compose.prod.yml build
 $ docker compose -f compose.prod.yml up -d
 ```
 
-# GitHub Actions Setup Guide
+# GitHub Actions setup
 
-## Overview
+## Workflow files
 
-This guide will help you set up GitHub Actions workflows for a Django/React application with three environments: Development, Staging, and Production.
-
-## Create Workflow Files
-
-Project already contains following directory structure:
+The project already contains these workflows:
 
 ```
 .github/workflows/
@@ -223,59 +208,55 @@ Project already contains following directory structure:
 └── production_deploy.yml     # Production deployment
 ```
 
-## 2. Set Up Environments
+## Set up environments
 
-Navigate to your repository on GitHub:
+In your GitHub repository:
 
-1. Go to **Settings** → **Environments**
+1. Go to Settings > Environments
 2. Create three environments:
    - `dev`
    - `staging`
    - `production`
 
-### Production Environment Protection
+### Production environment protection
 
-For the **production** environment:
-1. Click on the `production` environment
-2. Enable **"Required reviewers"**
+For the `production` environment:
+1. Click on `production`
+2. Enable "Required reviewers"
 3. Add team members who should approve production deployments
-4. Optionally set a **wait timer** (e.g., 5 minutes) before deployment
+4. Optionally set a wait timer (e.g., 5 minutes) before deployment
 
-## 3. Configure Secrets
+## Configure secrets
 
-For each environment, add the required secrets:
+For each environment, add the required secrets.
 
-### Development Environment (`dev`)
+### Development (`dev`)
 
-Go to **Settings → Environments → dev → Secrets**
+Go to Settings > Environments > dev > Secrets
 
-Add the following secrets:
-- **`DEV_HOST`** - Your development server IP address or hostname
-- **`DEV_SSH_KEY`** - SSH private key for accessing the dev server
-- [Optional] **`DEV_HEALTH_URL`** - e.g., `https://dev.yourapp.com/`
+- `DEV_HOST` - development server IP or hostname
+- `DEV_SSH_KEY` - SSH private key for accessing the dev server
+- `DEV_SSH_USER` (optional) - SSH username, defaults to `appuser`
 
-### Staging Environment (`staging`)
+### Staging (`staging`)
 
-Go to **Settings → Environments → staging → Secrets**
+Go to Settings > Environments > staging > Secrets
 
-Add the following secrets:
-- **`STAGING_HOST`** - Your staging server IP address or hostname
-- **`STAGING_SSH_KEY`** - SSH private key for accessing the staging server
-- [Optional] **`STAGING_HEALTH_URL`** - e.g., `https://staging.yourapp.com/`
+- `STAGING_HOST` - staging server IP or hostname
+- `STAGING_SSH_KEY` - SSH private key for accessing the staging server
+- `STAGING_SSH_USER` (optional) - SSH username, defaults to `appuser`
 
-### Production Environment (`production`)
+### Production (`production`)
 
-Go to **Settings → Environments → production → Secrets**
+Go to Settings > Environments > production > Secrets
 
-Add the following secrets:
-- **`PROD_HOST`** - Your production server IP address or hostname
-- **`PROD_SSH_KEY`** - SSH private key for accessing the production server
-- [Optional] **`PROD_HEALTH_URL`** - e.g., `https://yourapp.com/`
+- `PROD_HOST` - production server IP or hostname
+- `PROD_SSH_KEY` - SSH private key for accessing the production server
+- `PROD_SSH_USER` (optional) - SSH username, defaults to `appuser`
 
-### Generating SSH Keys
+### Generating SSH keys
 
-If you need to generate SSH keys for GitHub:
-**Note**: make sure to **not** use a passphrase for the key.
+Make sure to not use a passphrase for the key.
 
 ```bash
 # Generate a new SSH key pair
@@ -288,56 +269,60 @@ ssh-copy-id -i github_actions_key.pub appuser@your-server
 cat github_actions_key
 ```
 
-## 4. Set Up Your Servers
+## Set up your servers
 
-Ensure each server (dev, staging, production) has:
-
-### Prerequisites
+Each server (dev, staging, production) needs:
 
 - Docker and Docker Compose installed
 - Git installed
-- User `appuser` created with sudo privileges
-- You followed steps above in this document
+- A deploy user created with sudo privileges
+- The steps above in this document completed
 
-## 5. How Deployments Work
+## How deployments work
 
-### Development Deployment
+### Development
 
-**Trigger:** Push to `develop` branch
+Trigger: push to `develop` branch
 
-**Process:**
-1. Runs CI
-2. Checks out code
-3. Deploys to dev server using `compose.dev.yml`
-4. Runs database migrations
+1. Deploys to dev server using `compose.dev.yml`
+2. Runs database migrations
 
-**Command to trigger manually:**
 ```bash
 git push origin develop
 ```
 
-Or use **Actions** → **Deploy to Development** → **Run workflow**
+Or use Actions > Deploy to Development > Run workflow
 
-### Staging (Production) Deployment
+### Staging
 
-**Trigger:** Push to `staging (main)` branch
+Trigger: push to `staging` branch
 
-**Process:**
 1. Runs CI tests (backend and frontend)
-2. Deploys to the server using `compose.prod.yml`
-3. Runs database migrations
-4. Collects static files
+2. Deploys to staging server using `compose.prod.yml`
+3. Runs database migrations and collects static files
 
-**Command to trigger manually:**
 ```bash
-git push origin staging (main)
+git push origin staging
 ```
 
-Or use **Actions** → **Deploy to Staging (Production)** → **Run workflow**
+Or use Actions > Deploy to Staging > Run workflow
 
-## 6. Branch Strategy
+### Production
 
-The workflow is designed for this Git branching strategy:
+Trigger: push to `main` branch
+
+1. Runs CI tests (backend and frontend)
+2. Requires environment approval
+3. Deploys to production server using `compose.prod.yml`
+4. Runs database migrations and collects static files
+
+```bash
+git push origin main
+```
+
+Or use Actions > Deploy to Production > Run workflow
+
+## Branch strategy
 
 ```
 develop  → Development environment
@@ -347,56 +332,48 @@ staging  → Staging environment (merge develop here)
  main    → Production environment (merge staging here)
 ```
 
-## 6. Monitoring Deployments
+## Monitoring deployments
 
-### View Workflow Runs
+### View workflow runs
 
-1. Go to **Actions** tab in your repository
+1. Go to the Actions tab in your repository
 2. Select a workflow from the left sidebar
 3. Click on a specific run to see details
 
-### Deployment Status
-
-You can monitor:
-- Build logs
-- Test results
-- Deployment status
-- Health check results
-
 ### Troubleshooting
 
-#### Django Container Fails to Start
+#### Django container fails to start
 
-**Symptoms:**
+Symptoms:
 - Deployment script reports: `[ERROR] Some services failed to start: django_app-django-run-*`
 - Django container exits immediately after starting
 
-**Common Causes:**
+Common causes:
 
-1. **Missing or Invalid `.env` File**
+1. **Missing or invalid `.env` file**
 
-   The deployment script now validates the `.env` file before deploying. If you see errors like:
+   The deployment script validates the `.env` file before deploying. If you see:
    ```
    [ERROR] .env file not found!
    [ERROR] SECRET_KEY is not configured in .env file!
    [ERROR] POSTGRES_PASSWORD is not configured in .env file!
    ```
 
-   **Solution:**
-   - Ensure the `.env` file exists on the server
+   Fix:
+   - Make sure the `.env` file exists on the server
    - Copy from template: `cp prod.env .env` or `cp dev.env .env`
    - Fill in all required values (see below)
 
-2. **Placeholder Values in .env**
+2. **Placeholder values in .env**
 
    The `.env` file must not contain placeholder values like `<secret_key>` or empty values for required fields.
 
-   **Required values that must be set:**
-   - `SECRET_KEY` - Generate with: `python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'`
-   - `POSTGRES_PASSWORD` - Set a secure database password
-   - `ALLOWED_HOSTS` - Your actual domain (not `example.com`)
+   Required values:
+   - `SECRET_KEY` - generate with: `python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'`
+   - `POSTGRES_PASSWORD` - a secure database password
+   - `ALLOWED_HOSTS` - your actual domain (not `example.com`)
 
-   **Example of fixing the .env file:**
+   Example fix:
    ```bash
    # SSH into the server
    ssh appuser@your-server
@@ -407,7 +384,7 @@ You can monitor:
    # Edit .env file
    nano .env
 
-   # Update these critical values:
+   # Update these values:
    # SECRET_KEY=your-generated-secret-key-here
    # POSTGRES_PASSWORD=your-secure-password-here
    # ALLOWED_HOSTS=yourdomain.com
@@ -416,34 +393,29 @@ You can monitor:
    ./scripts/deploy.sh compose.dev.yml main ~/projects/django_app
    ```
 
-#### General Deployment Failures
+#### General deployment failures
 
 If a deployment fails:
-1. Check the workflow logs in the **Actions** tab
+1. Check the workflow logs in the Actions tab
 2. SSH into the server and check container logs:
    ```bash
-   cd ~/projects/django-react-docker-boilerplate
+   cd ~/projects/django_app
    docker compose -f compose.prod.yml logs django
    docker compose -f compose.prod.yml ps -a
    ```
 3. Verify secrets are correctly set in GitHub
-4. Ensure server has proper permissions and resources
+4. Check that the server has proper permissions and resources
 5. Check that all required environment variables are set in `.env`
 
-## Security Best Practices
+## Security best practices
 
-1. ✅ Never commit secrets or SSH keys to the repository
-2. ✅ Use environment-specific secrets
-3. ✅ Rotate SSH keys regularly
-4. ✅ Enable branch protection rules for `main` and `staging`
-5. ✅ Require pull request reviews before merging
-6. ✅ Use required reviewers for production deployments
+- Never commit secrets or SSH keys to the repository
+- Use environment-specific secrets
+- Rotate SSH keys regularly
+- Enable branch protection rules for `main` and `staging`
+- Require pull request reviews before merging
+- Use required reviewers for production deployments
 
-## Conclusion
-
-Your CI/CD pipeline is now set up! 🚀
-
-For any issues or questions, refer to:
-- [GitHub Actions Documentation](https://docs.github.com/en/actions)
-- [Docker Compose Documentation](https://docs.docker.com/compose/)
-- Your project's specific requirements
+For reference:
+- [GitHub Actions documentation](https://docs.github.com/en/actions)
+- [Docker Compose documentation](https://docs.docker.com/compose/)

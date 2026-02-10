@@ -1,0 +1,110 @@
+---
+- name: Cleanup old backups
+  hosts: all
+  become: yes
+
+  vars:
+    retention_days: "{{ retention_days | default(30) }}"
+    backup_dir: "/backups"
+
+  tasks:
+    - name: Display cleanup information
+      debug:
+        msg: |
+          Starting backup cleanup
+          Retention period: {{ retention_days }} days
+          Cloud provider: {{ cloud_provider }}
+
+    - name: Clean up local backups older than retention period
+      find:
+        paths: "{{ backup_dir }}"
+        patterns: "*.sql.gz,*.tar.gz"
+        age: "{{ retention_days }}d"
+      register: old_backups
+
+    - name: Display files to be deleted
+      debug:
+        msg: "Found {{ old_backups.matched }} old backup files"
+
+    - name: Remove old local backups
+      file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ old_backups.files }}"
+      when: old_backups.matched > 0
+
+    - name: Cleanup AWS S3 backups
+      block:
+        - name: List old S3 backups
+          command: >
+            aws s3 ls s3://{{ backup_bucket }}/backups/
+            --recursive
+          register: s3_backups
+          delegate_to: localhost
+          changed_when: false
+
+        - name: Calculate cutoff date
+          set_fact:
+            cutoff_timestamp: "{{ ansible_date_time.epoch | int - (retention_days | int * 86400) }}"
+
+        - name: Remove old S3 backups
+          command: >
+            aws s3 rm s3://{{ backup_bucket }}/backups/{{ item }}
+          loop: "{{ s3_old_files }}"
+          delegate_to: localhost
+          vars:
+            s3_old_files: "{{ s3_backups.stdout_lines | select('match', '.*\\d{4}-\\d{2}-\\d{2}.*') | list }}"
+          when: s3_old_files | length > 0
+      when: cloud_provider == 'aws'
+
+    - name: Cleanup DigitalOcean Spaces backups
+      block:
+        - name: Install s3cmd if not present
+          apt:
+            name: s3cmd
+            state: present
+          delegate_to: localhost
+
+        - name: List Spaces backups
+          command: >
+            s3cmd ls s3://{{ backup_bucket }}/backups/
+            --access_key={{ do_spaces_key }}
+            --secret_key={{ do_spaces_secret }}
+            --host={{ do_spaces_region }}.digitaloceanspaces.com
+            --host-bucket='%(bucket)s.{{ do_spaces_region }}.digitaloceanspaces.com'
+          register: spaces_backups
+          delegate_to: localhost
+          changed_when: false
+          when: do_spaces_key is defined
+
+        - name: Remove old Spaces backups
+          command: >
+            s3cmd rm s3://{{ backup_bucket }}/backups/{{ item }}
+            --access_key={{ do_spaces_key }}
+            --secret_key={{ do_spaces_secret }}
+            --host={{ do_spaces_region }}.digitaloceanspaces.com
+            --host-bucket='%(bucket)s.{{ do_spaces_region }}.digitaloceanspaces.com'
+          loop: "{{ spaces_old_files }}"
+          delegate_to: localhost
+          vars:
+            spaces_old_files: "{{ spaces_backups.stdout_lines | select('match', '.*\\d{4}-\\d{2}-\\d{2}.*') | list }}"
+          when:
+            - spaces_backups is defined
+            - spaces_old_files | length > 0
+      when: cloud_provider == 'digitalocean'
+
+    - name: Calculate disk space saved
+      shell: du -sh {{ backup_dir }}
+      register: disk_usage
+      changed_when: false
+
+    - name: Display cleanup summary
+      debug:
+        msg: |
+          ========================================
+          Backup Cleanup Complete
+          ========================================
+          Files removed: {{ old_backups.matched }}
+          Retention period: {{ retention_days }} days
+          Current backup directory size: {{ disk_usage.stdout }}
+          ========================================
