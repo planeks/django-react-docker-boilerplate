@@ -138,9 +138,19 @@ echo "(GITHUB_ACTIONS_SSH_KEY passed via environment)"
 echo ""
 eval $ANSIBLE_CMD
 
-echo -e "\n=== ✅ Provisioning Complete ==="
+echo -e "\n=== Provisioning Complete ==="
 echo "Next steps:"
 echo "1. Review provisioning summary above"
 echo "2. Verify app: http://$SERVER_IP"
 echo "3. Reboot if required"
+
+if [ "$CLOUD_PROVIDER" = "aws" ]; then
+    echo ""
+    echo "  AWS Security Groups (manual step):"
+    echo "  Open EC2 > Security Groups in the AWS Console"
+    echo "  and add inbound rules to your instance's security group:"
+    echo "    - SSH (port 22) from 0.0.0.0/0"
+    echo "    - HTTP (port 80) from 0.0.0.0/0"
+    echo "    - HTTPS (port 443) from 0.0.0.0/0"
+fi
 echo ""

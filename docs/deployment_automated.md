@@ -8,6 +8,10 @@ Automates server setup using Ansible.
    - Create an Ubuntu/Debian server on your cloud provider
    - Note the server IP address
    - Make sure the server is accessible via SSH
+   - **AWS EC2:** Configure the security group to allow inbound traffic on ports
+     22 (SSH), 80 (HTTP), and 443 (HTTPS). Go to EC2 > Security Groups, select
+     the group attached to your instance, and add these inbound rules.
+     Ansible does not configure security groups automatically.
 
 2. **Configure local environment**
    - Install Ansible: `pip install ansible`

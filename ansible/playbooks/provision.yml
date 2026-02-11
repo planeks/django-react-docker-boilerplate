@@ -51,10 +51,6 @@
         deploy_env: "{{ deploy_env | default('production') }}"
 
   roles:
-    - role: aws_security
-      tags: [aws, security, cloud]
-      when: cloud_provider == 'aws'
-
     - role: monitoring
       tags: [monitoring]
       when: enable_monitoring | default(true)
