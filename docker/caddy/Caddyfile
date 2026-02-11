@@ -12,11 +12,18 @@
 }
 
 {$SITE_DOMAIN} {
+    @docs path /api/schema/* /api/swagger-ui/*
+    handle @docs {
+        basic_auth {
+            {$CADDY_USER:admin} {$CADDY_PASSWORD}
+        }
+        reverse_proxy django:8000
+    }
+
     @api path /api/* /admin/*
-	@docs path /api/schema/ /api/swagger-ui/
-	handle @api {
-		reverse_proxy django:8000
-	}
+    handle @api {
+        reverse_proxy django:8000
+    }
 
     # Serve Vite assets
     handle /static/assets/* {
