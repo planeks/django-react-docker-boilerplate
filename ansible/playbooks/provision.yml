@@ -94,7 +94,6 @@
       systemd:
         name: docker
         state: started
-      check_mode: yes
       register: docker_status
 
     - name: Check if reboot is required
