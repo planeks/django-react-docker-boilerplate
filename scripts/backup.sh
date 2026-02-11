@@ -4,15 +4,15 @@
 # ============================================================================
 # Creates database backup inside postgres container, cleans up old backups
 #
-# Usage: ./backup.sh [compose_file] [project_path]
-# Example: ./backup.sh compose.prod.yml /home/appuser/projects/django_app
+# Usage: ./backup.sh [compose_file] [project_path] [retention_days]
+# Example: ./backup.sh compose.prod.yml /home/appuser/projects/django_app 30
 # ============================================================================
 
 set -euo pipefail
 
 COMPOSE_FILE="${1:-compose.prod.yml}"
 PROJECT_PATH="${2:-$(pwd)}"
-RETENTION_DAYS=28
+RETENTION_DAYS="${3:-30}"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"; }
 
