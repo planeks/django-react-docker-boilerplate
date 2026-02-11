@@ -334,6 +334,14 @@ staging  → Staging environment (merge develop here)
 
 ## Monitoring deployments
 
+### Server health check
+
+Run the health check script on the server to check Docker, disk, memory, load, container health, ports, and firewall:
+
+```bash
+ssh -i <your-key> <user>@<server_ip> "bash ~/projects/django_app/scripts/health-check.sh"
+```
+
 ### View workflow runs
 
 1. Go to the Actions tab in your repository

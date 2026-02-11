@@ -55,10 +55,6 @@
       tags: [aws, security, cloud]
       when: cloud_provider == 'aws'
 
-    - role: failover
-      tags: [failover, ha]
-      when: failover_ip is defined
-
     - role: monitoring
       tags: [monitoring]
       when: enable_monitoring | default(true)
