@@ -7,14 +7,13 @@ set -o nounset
 PORT="${APP_PORT:-8000}"
 
 # Fix permissions on mounted volumes (running as root)
+# Only fix top-level directories, not recursive — /data can grow large with media/static
 if [ "$(id -u)" = "0" ]; then
-    # Ensure /data directory exists and has correct permissions
-    mkdir -p /data/staticfiles
-    chown -R appuser:appuser /data
+    mkdir -p /data/staticfiles /data/media
+    chown appuser:appuser /data /data/staticfiles /data/media
     chmod 775 /data
     chmod g+s /data
 
-    # Fix permissions on project directory if needed
     chown -R appuser:appuser /opt/project/src/.pytest_cache 2>/dev/null || true
 fi
 
