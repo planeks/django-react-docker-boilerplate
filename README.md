@@ -17,10 +17,11 @@ Follow these steps to run the project in PyCharm:
 Follow these steps to run the project in VSCode:
 [Running in VSCode Guide](docs/vscode.md)
 
-## 🖥️ Deploying the project to the server
+## Deploying the project to the server
 
-Follow these steps to deploy the project to the production server:
-[Deployment Guide](docs/deployment.md)
+- [Automated provisioning with Ansible](docs/deployment_automated.md)
+- [Manual server setup](docs/deployment_manual.md)
+- [GitHub Actions setup](docs/github-actions-setup.md)
 
 📌 If this document does not contain some important information, feel free to make a pull request.
 
