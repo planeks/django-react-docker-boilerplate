@@ -207,14 +207,14 @@ After provisioning and configuring secrets, these workflows run automatically on
 
 ## Setup checklist
 
-- [ ] Generate SSH key pair for GitHub Actions (or let `provision-server.sh` generate it)
-- [ ] Run `./scripts/provision-server.sh`
-- [ ] Add `*_HOST` to GitHub Secrets
-- [ ] Add `*_SSH_KEY` to GitHub Secrets
-- [ ] Add `*_SSH_USER` to GitHub Secrets (if not using `appuser`)
-- [ ] SSH to server and verify `.env` file has real values
-- [ ] Test deployment via GitHub Actions
-- [ ] Verify the site is accessible
+- Generate SSH key pair for GitHub Actions (or let `provision-server.sh` generate it)
+- Run `./scripts/provision-server.sh`
+- Add `*_HOST` to GitHub Secrets
+- Add `*_SSH_KEY` to GitHub Secrets
+- Add `*_SSH_USER` to GitHub Secrets (if not using `appuser`)
+- SSH to server and verify `.env` file has real values
+- Test deployment via GitHub Actions
+- Verify the site is accessible
 
 ---
 
