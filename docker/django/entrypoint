@@ -80,10 +80,7 @@ help      : Show this message
 
 run_setup_commands(){
   mkdir -p /data/staticfiles
-
-  if [ "${COLLECTSTATIC_ON_STARTUP:-0}" = "1" ] ; then
-    gosu appuser poetry run python manage.py collectstatic --noinput
-  fi
+  gosu appuser poetry run python manage.py collectstatic --noinput
   gosu appuser poetry run python manage.py migrate
 }
 

@@ -83,22 +83,9 @@ is_placeholder() {
     [[ -z "$value" ]] || [[ "$value" =~ ^\<.*\>$ ]] || [[ "$value" == "secret_key" ]]
 }
 
-# Load .env file safely (handles empty values without quotes)
-# Use set -a to auto-export all variables, then disable it
+# Load .env file
 set -a
-if ! source .env 2>/dev/null; then
-    # If source fails, try loading with a more permissive approach
-    log_warning "Standard .env loading failed, attempting alternative parsing..."
-    # Parse line by line, handling empty values
-    while IFS='=' read -r key value; do
-        # Skip comments and empty lines
-        [[ "$key" =~ ^#.*$ ]] || [[ -z "$key" ]] && continue
-        # Remove leading/trailing whitespace from key
-        key=$(echo "$key" | xargs)
-        # Export the variable (empty values are OK here)
-        export "$key=$value"
-    done < .env
-fi
+source .env
 set +a
 
 # Check if critical secrets are configured
