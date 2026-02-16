@@ -32,8 +32,7 @@ class UserChangeForm(BaseUserChangeForm):
 
 
 class UserCreationForm(BaseUserCreationForm):
-    """
-    A form that creates a user, with no privileges,
+    """A form that creates a user, with no privileges,
     from the given email, phone and password.
     """
 

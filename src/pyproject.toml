@@ -66,12 +66,20 @@ exclude = [
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
-  "D105",   # missing docstring in magic method - unnecessary boilerplate
-  "D107",   # missing docstring in __init__ - unnecessary boilerplate
+  "D",      # docstring rules - Django classes/methods are self-documenting by convention
+  "ANN",    # type annotations - not enforced in this project
+  "EM101",  # string literal in exception - Django idiom, extracting to variable hurts readability
+  "TRY003", # long exception messages - same as above
+  "FBT002", # boolean default in function args - standard Django pattern (e.g. save(commit=True))
+  "FBT003", # boolean positional value - standard Django manager pattern
+  "RUF012", # mutable class attributes need ClassVar - conflicts with Django model/form fields
   "B904",   # raise from within except - too strict for Django error handling
   "PIE804", # unnecessary dict kwargs - common Django pattern
   "COM812", # missing trailing comma - conflicts with ruff formatter
   "ISC001", # implicit string concat - conflicts with ruff formatter
+  "S308",   # mark_safe - necessary for template tags
+  "G004",   # f-string in logging - acceptable for readability
+  "PTH123", # open() vs Path() - Django uses string paths throughout
 ]
 pydocstyle = { convention = "google" }
 mccabe = { max-complexity = 14 }

@@ -14,8 +14,7 @@ logger = logging.getLogger(__name__)
 
 @register.simple_tag
 def vite_asset(entry) -> str:
-    """
-    Load Vite assets from manifest.json
+    """Load Vite assets from manifest.json
     Usage: {% vite_asset 'src/index.jsx' %}
     """
     manifest_path = Path(settings.BASE_DIR) / "frontend/dist/.vite/manifest.json"
