@@ -10,7 +10,8 @@ PORT="${APP_PORT:-8000}"
 # Only fix top-level directories, not recursive — /data can grow large with media/static
 if [ "$(id -u)" = "0" ]; then
     mkdir -p /data/staticfiles /data/media
-    chown appuser:appuser /data /data/staticfiles /data/media
+    chown -R appuser:appuser /data/staticfiles
+    chown appuser:appuser /data /data/media
     chmod 775 /data
     chmod g+s /data
 
@@ -79,7 +80,6 @@ help      : Show this message
 }
 
 run_setup_commands(){
-  mkdir -p /data/staticfiles
   gosu appuser poetry run python manage.py collectstatic --noinput
   gosu appuser poetry run python manage.py migrate
 }

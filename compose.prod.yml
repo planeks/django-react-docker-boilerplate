@@ -117,7 +117,7 @@ services:
     volumes:
       - prod_caddy:/data
       - static:/static:ro
-      - media:/media
+      - media:/media:ro
       - docs:/docs
       - caddy_config:/config
       - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile

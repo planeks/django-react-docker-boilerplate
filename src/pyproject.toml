@@ -86,7 +86,7 @@ mccabe = { max-complexity = 14 }
 
 [tool.ruff.lint.per-file-ignores]
 # Settings: star imports (from .base import *), late imports, implicit namespace
-"config/settings/*.py" = ["F403", "F405", "E402", "INP001"]
+"config/settings/*.py" = ["F403", "F405", "E402", "INP001", "ERA001", "PTH118"]
 # Tests: hardcoded passwords in test data, relative imports, unittest assertions
 "*/tests/*.py" = ["S106", "TID252", "PT027"]
 "*/api/tests.py" = ["S106"]
