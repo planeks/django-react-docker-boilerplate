@@ -9,7 +9,6 @@ __pycache__
 *.sublime-project
 *.sublime-workspace
 /data/*
-/frontend/dist/*
 !/data/.gitkeep
 !/media/.gitkeep
 /tmp
@@ -24,4 +23,9 @@ __pycache__
 /ngrok
 .DS_Store
 ansible/.env.ansible
+ansible/ansible.log
 /backups/*
+.ruff_cache/
+.pytest_cache/
+node_modules/
+src/frontend/dist/

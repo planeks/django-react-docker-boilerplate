@@ -7,7 +7,7 @@
 }
 
 {$SITE_DOMAIN} {
-    @docs path /api/schema/* /api/swagger-ui/*
+    @docs path /api/schema/* /api/docs/* /api/redoc/*
     handle @docs {
         basic_auth {
             {$CADDY_USER:admin} {$CADDY_PASSWORD}

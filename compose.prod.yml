@@ -83,8 +83,8 @@ services:
     command:
       - build
     volumes:
-      - ./docs:/code/docs
-      - docs:/code/doc_site
+      - ./docs:/docs
+      - docs:/data
     logging:
       driver: journald
       options:

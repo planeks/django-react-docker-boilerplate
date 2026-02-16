@@ -1,16 +1,102 @@
-name: CI Tests
+name: CI
 
 on:
+  # Called by staging/production deploy workflows before deploying
   workflow_call: {}
-  push:
-    branches: [develop, staging, main]
   pull_request:
     branches: [develop, staging, main]
+    # Skip CI for changes that don't affect code quality or tests
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - '.gitignore'
+      - 'ansible/**'
+      - '.pre-commit-config.yaml'
+
+# Cancel in-progress runs on the same PR when a new push arrives,
+# so we don't burn Actions minutes on outdated commits
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  lint-backend:
+    name: Lint Python
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v5
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: pip
+
+    - name: Install tools
+      run: pip install ruff pip-audit poetry
+
+    - name: Ruff check
+      working-directory: ./src
+      run: ruff check .
+
+    - name: Ruff format check
+      working-directory: ./src
+      run: ruff format --check .
+
+    # Provides warnings for vulnerable dependencies, but doesn't fail the job, since we don't want to block PRs for that.
+    # We'll still get the warnings in the logs and can address them in a timely manner.
+    - name: Audit Python dependencies
+      continue-on-error: true
+      working-directory: ./src
+      run: poetry export -f requirements.txt --without-hashes -o /tmp/requirements.txt && pip-audit -r /tmp/requirements.txt
+
+  lint-frontend:
+    name: Lint Frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v5
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version: '20'
+        cache: npm
+        cache-dependency-path: src/frontend/package-lock.json
+
+    - name: Install dependencies
+      working-directory: ./src/frontend
+      run: npm ci
+
+    - name: ESLint
+      working-directory: ./src/frontend
+      run: npm run lint
+
+    - name: Prettier check
+      working-directory: ./src/frontend
+      run: npm run format:check
+
+    # Same as above: provide warnings for vulnerable dependencies, but don't fail the job,
+    # since we don't want to block PRs for that.
+    - name: Audit npm dependencies
+      continue-on-error: true
+      working-directory: ./src/frontend
+      run: npm audit --audit-level=high
+
   test-backend:
     name: Test Django Backend
+    # Skip tests on PRs to develop - lint is enough to save actions minutes.
+    # Tests still run for staging/production deploys via workflow_call
+    # (github.base_ref is empty for workflow_call, so this condition passes).
+    if: github.base_ref != 'develop'
+    needs: [lint-backend]
     runs-on: ubuntu-latest
+    timeout-minutes: 15 # Docker build can be slow
 
     steps:
     - name: Checkout code
@@ -31,7 +117,11 @@ jobs:
 
   test-frontend:
     name: Test React Frontend
+    # Same as above: skip on develop PRs, run on staging/production
+    if: github.base_ref != 'develop'
+    needs: [lint-frontend]
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     steps:
     - name: Checkout code
@@ -41,6 +131,8 @@ jobs:
       uses: actions/setup-node@v6
       with:
         node-version: '20'
+        cache: npm
+        cache-dependency-path: src/frontend/package-lock.json
 
     - name: Install dependencies
       working-directory: ./src/frontend
@@ -48,7 +140,7 @@ jobs:
 
     - name: Run frontend tests
       working-directory: ./src/frontend
-      run: npm test --if-present
+      run: npm test
 
     - name: Build frontend
       working-directory: ./src/frontend

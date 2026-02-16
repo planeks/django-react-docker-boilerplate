@@ -24,7 +24,7 @@ fi
 
 exitFunc() {
   echo 'Exiting...'
-  exit -1
+  exit 1
 }
 
 postgres_ready() {
@@ -53,7 +53,7 @@ until postgres_ready; do
   count=$((count+1))
   if [ $count -eq 10 ]; then
       >&2 echo 'A waiting time has been reached. Exiting...'
-      exit -1
+      exit 1
   fi
   >&2 echo 'Waiting for PostgreSQL to become available...'
   sleep 2
@@ -112,9 +112,6 @@ case "$1" in
     shell)
         exec gosu appuser poetry run python manage.py shell
     ;;
-    pip-compile)
-        exec gosu appuser poetry run pip-compile requirements.in
-    ;;
     celery)
         wait_for_postgres
         exec gosu appuser poetry run celery -A config "${@:2}"
@@ -122,11 +119,11 @@ case "$1" in
     celery-dev)
         wait_for_postgres
         if [ "$2" = "worker" ]; then
-            exec gosu appuser poetry run watchgod celery.__main__.main --args -A config worker "${@:3}"
+            exec gosu appuser poetry run watchfiles celery.__main__.main --args "-A config worker ${*:3}"
         elif [ "$2" = "beat" ]; then
-            exec gosu appuser poetry run watchgod celery.__main__.main --args -A config beat "${@:3}"
+            exec gosu appuser poetry run watchfiles celery.__main__.main --args "-A config beat ${*:3}"
         else
-            exec gosu appuser poetry run watchgod celery.__main__.main --args -A config "${@:2}"
+            exec gosu appuser poetry run watchfiles celery.__main__.main --args "-A config ${*:2}"
         fi
     ;;
     test)

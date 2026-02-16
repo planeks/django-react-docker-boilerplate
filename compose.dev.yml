@@ -95,7 +95,7 @@ services:
       - ./docs:/docs:cached
       - ./data/dev_mkdocs:/data:z
       - ./src:/code/src:cached
-       - /code/.venv
+      - /code/.venv
     ports:
       - "8050:8000"
     env_file:

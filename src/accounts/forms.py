@@ -137,13 +137,13 @@ class UserPasswordSetupForm(forms.Form):
 class UserAuthForm(AuthenticationForm):
     error_messages = {
         "invalid_login": _(
-            "Please enter correct email address and password. " "Note that both fields are case-sensitive."
+            "Please enter correct email address and password. Note that both fields are case-sensitive."
         ),
         "inactive": _("This account is inactive."),
     }
 
     def __init__(self, request=None, *args, **kwargs):
-        super(UserAuthForm, self).__init__(request, *args, **kwargs)
+        super().__init__(request, *args, **kwargs)
         self.fields["username"].label = _("Email")
         self.fields["username"].widget = forms.EmailInput()
 

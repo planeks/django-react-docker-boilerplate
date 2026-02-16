@@ -145,5 +145,5 @@ ansible-playbook -i inventory/... playbooks/provision.yml
 ## Related Documentation
 
 - [GitHub Actions Setup](github-actions-setup.md)
-- [Deployment Guide](deployment.md)
-- [Ansible Configuration](../ansible/README.md)
+- [Automated deployment](deployment_automated.md)
+- [Manual deployment](deployment_manual.md)
