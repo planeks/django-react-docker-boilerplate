@@ -101,24 +101,29 @@ echo -e "\n Git repository configuration"
 if [ -z "$GIT_REPO_URL" ] && git remote get-url origin &>/dev/null; then
     ORIGIN_URL=$(git remote get-url origin 2>/dev/null)
     REPO_PATH=""
+    GIT_HOST=""
     
-    # Parse various Git URL formats to extract repository path
+    # Parse various Git URL formats to extract repository path and host
     if [[ "$ORIGIN_URL" =~ ^git@([^:]+):(.+)$ ]]; then
         # SSH format: git@github.com:user/repo.git
+        GIT_HOST="${BASH_REMATCH[1]}"
         REPO_PATH="${BASH_REMATCH[2]}"
     elif [[ "$ORIGIN_URL" =~ ^https?://([^/]+)/(.+)$ ]]; then
         # HTTPS format: https://github.com/user/repo.git
+        GIT_HOST="${BASH_REMATCH[1]}"
         REPO_PATH="${BASH_REMATCH[2]}"
     elif [[ "$ORIGIN_URL" =~ ^ssh://git@([^/]+)/(.+)$ ]]; then
         # SSH URL format: ssh://git@github.com/user/repo.git
+        GIT_HOST="${BASH_REMATCH[1]}"
         REPO_PATH="${BASH_REMATCH[2]}"
     fi
     
-    if [ -n "$REPO_PATH" ]; then
+    if [ -n "$REPO_PATH" ] && [ -n "$GIT_HOST" ]; then
         # Remove .git suffix if present, then add it back for consistency
         REPO_PATH="${REPO_PATH%.git}"
-        DETECTED_URL="git@github.com:${REPO_PATH}.git"
-        [[ "$DETECTED_URL" =~ ^git@github\.com:.+/.+\.git$ ]] && GIT_REPO_URL="$DETECTED_URL"
+        DETECTED_URL="git@${GIT_HOST}:${REPO_PATH}.git"
+        # Validate format: git@host:user/repo.git (exactly two path components)
+        [[ "$DETECTED_URL" =~ ^git@[^:]+:[^/]+/[^/]+\.git$ ]] && GIT_REPO_URL="$DETECTED_URL"
     fi
 fi
 
