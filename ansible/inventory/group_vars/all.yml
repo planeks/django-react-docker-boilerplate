@@ -101,5 +101,3 @@ build_images: true  # Build Docker images during deployment
 cleanup_images: true  # Clean up old Docker images
 auto_reboot: false  # Automatically reboot after kernel updates (use with caution)
 force_env_update: false  # Force update .env file even if it exists
-
-

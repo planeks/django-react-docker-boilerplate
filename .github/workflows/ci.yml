@@ -90,10 +90,6 @@ jobs:
 
   test-backend:
     name: Test Django Backend
-    # Skip tests on PRs to develop - lint is enough to save actions minutes.
-    # Tests still run for staging/production deploys via workflow_call
-    # (github.base_ref is empty for workflow_call, so this condition passes).
-    if: github.base_ref != 'develop'
     needs: [lint-backend]
     runs-on: ubuntu-latest
     timeout-minutes: 15 # Docker build can be slow
@@ -117,8 +113,6 @@ jobs:
 
   test-frontend:
     name: Test React Frontend
-    # Same as above: skip on develop PRs, run on staging/production
-    if: github.base_ref != 'develop'
     needs: [lint-frontend]
     runs-on: ubuntu-latest
     timeout-minutes: 5

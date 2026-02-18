@@ -78,7 +78,7 @@ exec poetry run pytest
 ---
 
 **Note:**
-- Ensure all URLs and credentials in environment variables are properly configured.  
+- Ensure all URLs and credentials in environment variables are properly configured.
 - Install system dependencies for PostgreSQL, Redis, Node.js, and Python as needed.
 
 This setup runs all components locally, replacing the Docker containers.

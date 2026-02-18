@@ -80,16 +80,22 @@ ignore = [
   "S308",   # mark_safe - necessary for template tags
   "G004",   # f-string in logging - acceptable for readability
   "PTH123", # open() vs Path() - Django uses string paths throughout
+  "ARG002", # unused method argument - Django views/admin must match parent signatures (request, *args, **kwargs)
+  "PLC0415", # import not at top level - lazy imports are idiomatic in Django (manage.py, models, management commands)
 ]
 pydocstyle = { convention = "google" }
 mccabe = { max-complexity = 14 }
 
 [tool.ruff.lint.per-file-ignores]
 # Settings: star imports (from .base import *), late imports, implicit namespace
-"config/settings/*.py" = ["F403", "F405", "E402", "INP001", "ERA001", "PTH118"]
-# Tests: hardcoded passwords in test data, relative imports, unittest assertions
-"*/tests/*.py" = ["S106", "TID252", "PT027"]
-"*/api/tests.py" = ["S106"]
+"config/settings/*.py" = ["F403", "F405", "E402", "INP001", "ERA001", "PTH118", "ARG005"]
+# Tests: hardcoded passwords in test data, relative imports, unittest assertions, assert statements
+"*/tests/*.py" = ["S106", "TID252", "PT027", "S101", "PT009"]
+"*/api/tests.py" = ["S106", "S101", "PT009"]
+# Middleware: assert for request preconditions is a Django convention
+"core/middleware.py" = ["S101"]
+# URL config: commented-out code kept as reference for common patterns
+"config/urls.py" = ["ERA001"]
 
 [tool.ruff.format]
 indent-style = "space"
