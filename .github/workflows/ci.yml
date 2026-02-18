@@ -5,13 +5,6 @@ on:
   workflow_call: {}
   pull_request:
     branches: [develop, staging, main]
-    # Skip CI for changes that don't affect code quality or tests
-    paths-ignore:
-      - 'docs/**'
-      - '*.md'
-      - '.gitignore'
-      - 'ansible/**'
-      - '.pre-commit-config.yaml'
 
 # Cancel in-progress runs on the same PR when a new push arrives,
 # so we don't burn Actions minutes on outdated commits
