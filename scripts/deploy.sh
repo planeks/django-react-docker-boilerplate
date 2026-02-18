@@ -80,7 +80,7 @@ log_info "Validating environment configuration..."
 # Function to check if a value is a placeholder
 is_placeholder() {
     local value="$1"
-    [[ -z "$value" ]] || [[ "$value" =~ ^\<.*\>$ ]] || [[ "$value" == "secret_key" ]]
+    [[ -z "$value" ]] || [[ "$value" =~ ^<.*>$ ]] || [[ "$value" == "secret_key" ]]
 }
 
 # Load .env file
@@ -130,7 +130,7 @@ if [ "$MISSING_SECRETS" = true ]; then
     log_warning "========================================"
     log_warning "Deployment skipped - waiting for configuration"
     log_warning "========================================"
-    exit 0
+    exit 1
 fi
 
 # Check ALLOWED_HOSTS (for production)
@@ -228,20 +228,13 @@ log_info "Waiting for Django to complete startup..."
 sleep 15
 
 # Check if containers are running (excluding build-only services like mkdocs and one-off run containers)
-FAILED_SERVICES=$(docker compose -f "$COMPOSE_FILE" ps --status=exited --format json | jq -r 'select(.Name | contains("docs") | not) | select(.Name | contains("-run-") | not) | .Name' 2>/dev/null || echo "")
+FAILED_SERVICES=$(docker compose -f "$COMPOSE_FILE" ps --status=exited --format '{{.Name}}' 2>/dev/null | grep -v -e 'docs' -e '\-run\-' || echo "")
 if [ -n "$FAILED_SERVICES" ]; then
     log_error "Some services failed to start: $FAILED_SERVICES"
     exit 1
 fi
 
 log_success "All services running!"
-
-# ============================================================================
-# Cleanup
-# ============================================================================
-
-log_info "Cleaning up old Docker images..."
-docker image prune -f
 
 # ============================================================================
 # Health Check
@@ -256,12 +249,20 @@ HEALTH_CHECK_OUTPUT=$(docker compose -f "$COMPOSE_FILE" exec -T django bash -c "
     echo "$HEALTH_CHECK_OUTPUT"
     log_error "Django container logs:"
     docker compose -f "$COMPOSE_FILE" logs --tail=50 django
+    log_error "Rolling back"
+    git checkout "$CURRENT_COMMIT"               # restore the code
+    docker tag myapp:rollback myapp:latest       # restore the image
+    docker compose -f "$COMPOSE_FILE" up -d      # restart previous containers
+    docker image prune -f                        # clean up after rollback
     exit 1
 }
 
 log_info "Health check output:"
 echo "$HEALTH_CHECK_OUTPUT"
 log_success "Django health check passed!"
+
+log_info "Cleaning up old Docker images..."
+docker image prune -f
 
 # ============================================================================
 # Success

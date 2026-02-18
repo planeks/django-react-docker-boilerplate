@@ -1,10 +1,4 @@
 cloud_provider: digitalocean
-reserved_ip_enabled: true
-ssl_cert_method: letsencrypt
-monitoring_agent: prometheus
-
-# DigitalOcean Configuration
-configure_cloud_firewall: true
 
 # GitHub Actions
 setup_github_actions: true

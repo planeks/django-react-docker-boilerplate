@@ -1,7 +1,4 @@
 cloud_provider: aws
-reserved_ip_enabled: true
-ssl_cert_method: acm
-monitoring_agent: cloudwatch
 
 # GitHub Actions
 setup_github_actions: true

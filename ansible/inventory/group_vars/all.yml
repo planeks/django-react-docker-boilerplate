@@ -19,11 +19,9 @@ app_dir: /home/{{ app_user }}/projects/{{ project_name }}
 
 # ============================================================================
 # Domain and SSL Configuration
-# Set DOMAIN_NAME and SSL_EMAIL environment variables before provisioning
+# Set DOMAIN_NAME environment variable before provisioning
 # ============================================================================
 domain_name: "{{ lookup('env', 'DOMAIN_NAME') }}"
-ssl_email: "{{ lookup('env', 'SSL_EMAIL') | default('admin@' + domain_name) }}"
-ssl_provider: letsencrypt
 
 # ============================================================================
 # Database Configuration
@@ -64,20 +62,6 @@ install_promtail: false  # Set to true if you have a Loki server
 backup_retention_days: 30
 
 # ============================================================================
-# Health Check Configuration
-# ============================================================================
-health_check_url: "http://localhost:8000/"
-
-# ============================================================================
-# Django Admin Configuration (for initial setup)
-# Set these environment variables before provisioning
-# ============================================================================
-django_admin_user: "{{ lookup('env', 'DJANGO_ADMIN_USER') | default('admin') }}"
-django_admin_password: "{{ lookup('env', 'DJANGO_ADMIN_PASSWORD') }}"
-django_admin_email: "{{ lookup('env', 'DJANGO_ADMIN_EMAIL') | default('admin@' + domain_name) }}"
-django_log_level: "{{ lookup('env', 'DJANGO_LOG_LEVEL') | default('INFO') }}"
-
-# ============================================================================
 # Application Secrets (Optional - can be set via environment variables)
 # If not set, .env file will contain placeholders that need manual update
 # ============================================================================
@@ -90,14 +74,10 @@ django_secret_key: "{{ lookup('env', 'DJANGO_SECRET_KEY') | default('') }}"
 # ============================================================================
 setup_github_actions: true
 create_env_template: true
-prompt_for_github_setup: true  # Set to false to skip interactive prompt when SSH key is not provided
 # github_actions_ssh_key: Set via GITHUB_ACTIONS_SSH_KEY environment variable
 
 # ============================================================================
 # Deployment Options
 # ============================================================================
 deploy_app: false  # Set to true to deploy app during provisioning (requires git_repo_url)
-build_images: true  # Build Docker images during deployment
-cleanup_images: true  # Clean up old Docker images
 auto_reboot: false  # Automatically reboot after kernel updates (use with caution)
-force_env_update: false  # Force update .env file even if it exists
