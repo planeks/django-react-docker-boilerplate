@@ -36,7 +36,7 @@ You can use `Python` configuration template to run Celery. Do not forget to
 set the proper remote interpreter and working directory. Also, set the following options:
 
 - `Script path` : `/usr/local/bin/watchfiles`
-- `Parameters` : `celery.__main__.main --args -A config worker --loglevel=info -P solo`
+- `Parameters` : `celery.__main__.main --args "-A config worker --loglevel=info -P solo"`
 
 Here we use `watchfiles` utility to automatically restart Celery if
 the source code has been changed.
