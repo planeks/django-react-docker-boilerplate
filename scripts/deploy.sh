@@ -130,7 +130,7 @@ if [ "$MISSING_SECRETS" = true ]; then
     log_warning "========================================"
     log_warning "Deployment skipped - waiting for configuration"
     log_warning "========================================"
-    exit 0
+    exit 1
 fi
 
 # Check ALLOWED_HOSTS (for production)
@@ -228,7 +228,7 @@ log_info "Waiting for Django to complete startup..."
 sleep 15
 
 # Check if containers are running (excluding build-only services like mkdocs and one-off run containers)
-FAILED_SERVICES=$(docker compose -f "$COMPOSE_FILE" ps --status=exited --format json | jq -r 'select(.Name | contains("docs") | not) | select(.Name | contains("-run-") | not) | .Name' 2>/dev/null || echo "")
+FAILED_SERVICES=$(docker compose -f "$COMPOSE_FILE" ps --status=exited --format '{{.Name}}' 2>/dev/null | grep -v -e 'docs' -e '\-run\-' || echo "")
 if [ -n "$FAILED_SERVICES" ]; then
     log_error "Some services failed to start: $FAILED_SERVICES"
     exit 1
