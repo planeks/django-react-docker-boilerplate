@@ -237,13 +237,6 @@ fi
 log_success "All services running!"
 
 # ============================================================================
-# Cleanup
-# ============================================================================
-
-log_info "Cleaning up old Docker images..."
-docker image prune -f
-
-# ============================================================================
 # Health Check
 # ============================================================================
 
@@ -256,12 +249,20 @@ HEALTH_CHECK_OUTPUT=$(docker compose -f "$COMPOSE_FILE" exec -T django bash -c "
     echo "$HEALTH_CHECK_OUTPUT"
     log_error "Django container logs:"
     docker compose -f "$COMPOSE_FILE" logs --tail=50 django
+    log_error "Rolling back"
+    git checkout "$CURRENT_COMMIT"               # restore the code
+    docker tag myapp:rollback myapp:latest       # restore the image
+    docker compose -f "$COMPOSE_FILE" up -d      # restart previous containers
+    docker image prune -f                        # clean up after rollback
     exit 1
 }
 
 log_info "Health check output:"
 echo "$HEALTH_CHECK_OUTPUT"
 log_success "Django health check passed!"
+
+log_info "Cleaning up old Docker images..."
+docker image prune -f
 
 # ============================================================================
 # Success
