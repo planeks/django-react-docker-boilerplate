@@ -123,7 +123,8 @@ if [ -z "$GIT_REPO_URL" ] && git remote get-url origin &>/dev/null; then
         # Remove .git suffix if present, then add it back for consistency
         REPO_PATH="${REPO_PATH%.git}"
         # Validate that REPO_PATH has exactly two non-empty components (user/repo)
-        if [[ "$REPO_PATH" =~ ^[^/]+/[^/]+$ ]]; then
+        # excluding whitespace and ensuring valid repository naming
+        if [[ "$REPO_PATH" =~ ^[^/[:space:]]+/[^/[:space:]]+$ ]]; then
             DETECTED_URL="git@${GIT_HOST}:${REPO_PATH}.git"
             GIT_REPO_URL="$DETECTED_URL"
         fi
