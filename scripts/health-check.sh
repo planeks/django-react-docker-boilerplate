@@ -67,7 +67,7 @@ docker ps --filter "health=unhealthy" --format "{{.Names}}: {{.Status}}" | while
     if [ -n "$line" ]; then
         log_error "✗ $line"
     fi
-done
+done || true
 
 UNHEALTHY=$(docker ps --filter "health=unhealthy" -q | wc -l)
 if [ "$UNHEALTHY" -eq 0 ]; then
