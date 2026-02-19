@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.urls import re_path
 from django.utils.translation import gettext_lazy as _
 
 from .forms import UserChangeForm, UserCreationForm
@@ -8,7 +9,6 @@ from .models import User
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    # add_form_template = 'accounts/admin/auth/user/add_form.html'
     fieldsets = (
         (
             None,
@@ -66,15 +66,14 @@ class UserAdmin(BaseUserAdmin):
     ]
 
     def get_urls(self):
-        from django.urls import re_path
-
         return [
             re_path(
                 r"^(.+)/change/password/$",
                 self.admin_site.admin_view(self.user_change_password),
                 name="auth_user_password_change",
             ),
-        ] + super().get_urls()
+            *super().get_urls(),
+        ]
 
     def activate(self, request, queryset):
         queryset.update(is_active=True)

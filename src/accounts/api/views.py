@@ -8,6 +8,7 @@ from rest_framework.generics import UpdateAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
@@ -100,7 +101,7 @@ class LogoutView(APIView):
             # Blacklist the refresh token
             token.blacklist()
             return Response(status=status.HTTP_204_NO_CONTENT)
-        except Exception:
+        except (KeyError, TokenError):
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
