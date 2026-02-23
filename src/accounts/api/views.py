@@ -1,15 +1,14 @@
 from django.conf import settings
 from django.template.loader import render_to_string
-from django.utils.encoding import force_str
-from django.utils.http import urlsafe_base64_decode
-from django.utils.encoding import force_bytes
-from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import generics, status
 from rest_framework.generics import UpdateAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
@@ -102,7 +101,7 @@ class LogoutView(APIView):
             # Blacklist the refresh token
             token.blacklist()
             return Response(status=status.HTTP_204_NO_CONTENT)
-        except Exception:
+        except (KeyError, TokenError):
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
 

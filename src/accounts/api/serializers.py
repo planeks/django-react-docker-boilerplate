@@ -19,15 +19,13 @@ class UserSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         """Validate password for registration"""
-
         validate_password(attrs["password"])
         return attrs
 
     def create(self, validated_data):
-        user = User.objects.create_user(
+        return User.objects.create_user(
             name=validated_data["name"], password=validated_data["password"], email=validated_data.get("email", "")
         )
-        return user
 
     class Meta:
         model = User

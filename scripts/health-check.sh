@@ -77,7 +77,7 @@ fi
 # Check critical ports
 echo -e "\n[Network Ports]"
 for port in 80 443 22; do
-    if netstat -tuln | grep -q ":$port "; then
+    if ss -tuln | grep -q ":$port "; then
         log_success "✓ Port $port is open"
     else
         log_error "✗ Port $port is not listening"
