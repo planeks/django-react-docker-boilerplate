@@ -40,7 +40,7 @@ werkzeug = "^3.0"
 whitenoise = "^6.6"
 
 [tool.poetry.group.dev.dependencies]
-django-debug-toolbar = "^4.2"
+django-debug-toolbar = "^6.2"
 freezegun = "^1.4"
 markdown-urlize = "^0.2"
 pytest = "^7.4"
