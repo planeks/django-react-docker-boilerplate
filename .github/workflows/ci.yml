@@ -5,6 +5,19 @@ on:
   workflow_call: {}
   pull_request:
     branches: [develop, staging, main]
+    # Skip CI for changes that don't affect code quality or tests
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - '.gitignore'
+      - 'ansible/**'
+      - '.pre-commit-config.yaml'
+
+# Cancel in-progress runs on the same PR when a new push arrives,
+# so we don't burn Actions minutes on outdated commits
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 # Cancel in-progress runs on the same PR when a new push arrives,
 # so we don't burn Actions minutes on outdated commits
@@ -83,6 +96,10 @@ jobs:
 
   test-backend:
     name: Test Django Backend
+    # Skip tests on PRs to develop - lint is enough to save actions minutes.
+    # Tests still run for staging/production deploys via workflow_call
+    # (github.base_ref is empty for workflow_call, so this condition passes).
+    if: github.base_ref != 'develop'
     needs: [lint-backend]
     runs-on: ubuntu-latest
     timeout-minutes: 15 # Docker build can be slow
@@ -106,6 +123,8 @@ jobs:
 
   test-frontend:
     name: Test React Frontend
+    # Same as above: skip on develop PRs, run on staging/production
+    if: github.base_ref != 'develop'
     needs: [lint-frontend]
     runs-on: ubuntu-latest
     timeout-minutes: 5
