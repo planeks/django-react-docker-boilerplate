@@ -19,6 +19,12 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Cancel in-progress runs on the same PR when a new push arrives,
+# so we don't burn Actions minutes on outdated commits
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint-backend:
     name: Lint Python

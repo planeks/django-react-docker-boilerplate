@@ -4,7 +4,9 @@ repos:
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
+        exclude: ^src/config/static/vendor/.*$
       - id: check-yaml
+        exclude: ^docker/mkdocs/mkdocs\.yml$
       - id: check-added-large-files
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
@@ -20,14 +22,14 @@ repos:
     hooks:
       - id: eslint
         name: eslint
-        entry: npx --prefix src/frontend eslint
+        entry: bash -c 'cd src/frontend && npx eslint "${@#src/frontend/}"' --
         language: system
         files: ^src/frontend/src/.*\.(js|jsx)$
         pass_filenames: true
 
       - id: prettier
         name: prettier
-        entry: npx --prefix src/frontend prettier --check
+        entry: bash -c 'cd src/frontend && npx prettier --check "${@#src/frontend/}"' --
         language: system
         files: ^src/frontend/src/.*\.(js|jsx|ts|tsx|json|css)$
         pass_filenames: true

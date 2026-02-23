@@ -60,7 +60,7 @@ ANSIBLE_CMD="ansible-playbook -i $SERVER_IP,"
 ANSIBLE_CMD="$ANSIBLE_CMD -e deploy_env=${ENVIRONMENT}"
 ANSIBLE_CMD="$ANSIBLE_CMD -e cloud_provider=${CLOUD_PROVIDER}"
 ANSIBLE_CMD="$ANSIBLE_CMD -e auto_reboot=false"
-ANSIBLE_CMD="$ANSIBLE_CMD -e deploy_app=true"
+# deploy_app is set later based on GIT_REPO_URL availability
 
 # Pass critical vars (group_vars don't load with comma-separated inventory)
 [ -n "$APP_USER" ] && ANSIBLE_CMD="$ANSIBLE_CMD -e app_user='${APP_USER}'"
@@ -138,19 +138,31 @@ GIT_BRANCH=${GIT_BRANCH:-main}
 if [ -n "$GIT_REPO_URL" ]; then
     echo "Repo: $GIT_REPO_URL"
     echo "Branch: $GIT_BRANCH"
+    ANSIBLE_CMD="$ANSIBLE_CMD -e deploy_app=true"
 else
     echo "No GIT_REPO_URL - app deployment will be skipped"
+    ANSIBLE_CMD="$ANSIBLE_CMD -e deploy_app=false"
 fi
 
 # Pass environment vars to Ansible
 echo -e "\nPassing variables to Ansible"
-for var in DOMAIN_NAME SSL_EMAIL DB_PASSWORD GIT_REPO_URL GIT_BRANCH PROJECT_NAME; do
+
+# Required variables - exit if missing
+for var in DOMAIN_NAME DB_PASSWORD PROJECT_NAME; do
     if [ -n "${!var}" ]; then
         ansible_var=$(echo "$var" | tr '[:upper:]' '[:lower:]')
         ANSIBLE_CMD="$ANSIBLE_CMD -e ${ansible_var}='${!var}'"
     else
         echo "$var - not provided. Update ansible/.env.ansible."
         exit 1
+    fi
+done
+
+# Optional variables - pass if set
+for var in GIT_REPO_URL GIT_BRANCH; do
+    if [ -n "${!var}" ]; then
+        ansible_var=$(echo "$var" | tr '[:upper:]' '[:lower:]')
+        ANSIBLE_CMD="$ANSIBLE_CMD -e ${ansible_var}='${!var}'"
     fi
 done
 
