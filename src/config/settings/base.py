@@ -5,7 +5,7 @@ from pathlib import Path
 from decouple import Csv, config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve(strict=True).parents[2]   # /src
+BASE_DIR = Path(__file__).resolve(strict=True).parents[2]  # /src
 ROOT_DIR = BASE_DIR.parent  # /
 PROJECT_NAME = config("PROJECT_NAME", default="NEWPROJECTNAME")
 
@@ -61,9 +61,8 @@ if SENTRY_DSN and SENTRY_DSN.strip() and SENTRY_DSN.strip().startswith(("http://
         """This function removes the DisallowedHost errors from
         the Sentry logs for avoiding excedding the quota.
         """
-        if "log_record" in hint:
-            if hint["log_record"].name == "django.security.DisallowedHost":
-                return None
+        if "log_record" in hint and hint["log_record"].name == "django.security.DisallowedHost":
+            return None
         return event
 
     sentry_sdk.init(
@@ -147,12 +146,12 @@ WSGI_APPLICATION = "config.wsgi.application"
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
 
 STATIC_URL = "/static/"
-STATIC_ROOT = config("STATIC_ROOT", default=os.path.join(ROOT_DIR, "/data/staticfiles"))
+STATIC_ROOT = config("STATIC_ROOT", default="/data/staticfiles")
 
 STATICFILES_DIRS = (os.path.join(BASE_DIR, "config", "static"),)
 
-MEDIA_URL = '/media/'
-MEDIA_ROOT = config('MEDIA_ROOT', default=os.path.join(ROOT_DIR, '/data/media'))
+MEDIA_URL = "/media/"
+MEDIA_ROOT = config("MEDIA_ROOT", default="/data/media")
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
@@ -228,7 +227,7 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
-VITE_DEV_SERVER_HOST = os.environ.get('VITE_DEV_SERVER_HOST', 'localhost')
+VITE_DEV_SERVER_HOST = os.environ.get("VITE_DEV_SERVER_HOST", "localhost")
 
 
 LOGGING = {
@@ -243,7 +242,6 @@ LOGGING = {
             "formatter": "simple",
         },
     },
-
     # Send everything to console; level taken from env, default INFO
     "root": {
         "handlers": ["console"],

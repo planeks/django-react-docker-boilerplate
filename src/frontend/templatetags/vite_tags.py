@@ -1,6 +1,5 @@
 import json
 import logging
-
 from pathlib import Path
 
 from django import template
@@ -15,20 +14,17 @@ logger = logging.getLogger(__name__)
 
 @register.simple_tag
 def vite_asset(entry) -> str:
-    """
-    Load Vite assets from manifest.json
+    """Load Vite assets from manifest.json
     Usage: {% vite_asset 'src/index.jsx' %}
     """
-    manifest_path = (
-        Path(settings.BASE_DIR) / "frontend/dist/.vite/manifest.json"
-    )
+    manifest_path = Path(settings.BASE_DIR) / "frontend/dist/.vite/manifest.json"
 
     if not manifest_path.exists():
         logger.debug(f"Manifest not found at path {manifest_path}")
         return ""
 
     try:
-        with open(manifest_path, 'r') as f:
+        with open(manifest_path) as f:
             manifest = json.load(f)
     except json.JSONDecodeError:
         logger.debug("Invalid manifest.json")
@@ -42,14 +38,14 @@ def vite_asset(entry) -> str:
     tags = []
 
     # Add css files
-    if 'css' in entry_data:
-        for css_file in entry_data['css']:
+    if "css" in entry_data:
+        for css_file in entry_data["css"]:
             css_url = static(css_file)
             tags.append(f'<link rel="stylesheet" href="{css_url}">')
 
     # Add main js file
-    js_file = entry_data['file']
+    js_file = entry_data["file"]
     js_url = static(js_file)
     tags.append(f'<script type="module" src="{js_url}"></script>')
 
-    return mark_safe('\n '.join(tags))
+    return mark_safe("\n ".join(tags))

@@ -83,8 +83,8 @@ services:
     command:
       - build
     volumes:
-      - ./docs:/code/docs
-      - docs:/code/doc_site
+      - ./docs:/docs
+      - docs:/data
     logging:
       driver: journald
       options:
@@ -117,7 +117,7 @@ services:
     volumes:
       - prod_caddy:/data
       - static:/static:ro
-      - media:/media
+      - media:/media:ro
       - docs:/docs
       - caddy_config:/config
       - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile

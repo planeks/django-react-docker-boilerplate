@@ -17,6 +17,10 @@ Follow these steps to run the project in PyCharm:
 Follow these steps to run the project in VSCode:
 [Running in VSCode Guide](docs/vscode.md)
 
+## Code quality
+
+Linting, formatting, testing, and dependency scanning are configured for both backend and frontend: [Code quality](docs/code-quality.md)
+
 ## Deploying the project to the server
 
 - [Automated provisioning with Ansible](docs/deployment_automated.md)

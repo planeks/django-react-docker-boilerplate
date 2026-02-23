@@ -60,7 +60,7 @@ ANSIBLE_CMD="ansible-playbook -i $SERVER_IP,"
 ANSIBLE_CMD="$ANSIBLE_CMD -e deploy_env=${ENVIRONMENT}"
 ANSIBLE_CMD="$ANSIBLE_CMD -e cloud_provider=${CLOUD_PROVIDER}"
 ANSIBLE_CMD="$ANSIBLE_CMD -e auto_reboot=false"
-ANSIBLE_CMD="$ANSIBLE_CMD -e deploy_app=true"
+# deploy_app is set later based on GIT_REPO_URL availability
 
 # Pass critical vars (group_vars don't load with comma-separated inventory)
 [ -n "$APP_USER" ] && ANSIBLE_CMD="$ANSIBLE_CMD -e app_user='${APP_USER}'"
@@ -99,8 +99,35 @@ fi
 # Auto-detect git repository
 echo -e "\n Git repository configuration"
 if [ -z "$GIT_REPO_URL" ] && git remote get-url origin &>/dev/null; then
-    DETECTED_URL=$(git remote get-url origin 2>/dev/null | sed -E 's#.*/git/([^/]+/[^/]+).*#git@github.com:\1.git#')
-    [[ "$DETECTED_URL" =~ ^git@github\.com:.+\.git$ ]] && GIT_REPO_URL="$DETECTED_URL"
+    ORIGIN_URL=$(git remote get-url origin 2>/dev/null)
+    REPO_PATH=""
+    GIT_HOST=""
+    
+    # Parse various Git URL formats to extract repository path and host
+    if [[ "$ORIGIN_URL" =~ ^git@([^:]+):(.+)$ ]]; then
+        # SSH format: git@github.com:user/repo.git
+        GIT_HOST="${BASH_REMATCH[1]}"
+        REPO_PATH="${BASH_REMATCH[2]}"
+    elif [[ "$ORIGIN_URL" =~ ^https?://([^/]+)/(.+)$ ]]; then
+        # HTTPS format: https://github.com/user/repo.git
+        # Strip userinfo (user:pass@) if present
+        GIT_HOST="${BASH_REMATCH[1]##*@}"
+        REPO_PATH="${BASH_REMATCH[2]}"
+    elif [[ "$ORIGIN_URL" =~ ^ssh://git@([^/]+)/(.+)$ ]]; then
+        # SSH URL format: ssh://git@github.com/user/repo.git
+        GIT_HOST="${BASH_REMATCH[1]}"
+        REPO_PATH="${BASH_REMATCH[2]}"
+    fi
+    
+    if [ -n "$REPO_PATH" ] && [ -n "$GIT_HOST" ]; then
+        # Remove .git suffix if present, then add it back for consistency
+        REPO_PATH="${REPO_PATH%.git}"
+        # Validate that REPO_PATH has exactly two non-empty components (user/repo)
+        if [[ "$REPO_PATH" =~ ^[^/]+/[^/]+$ ]]; then
+            DETECTED_URL="git@${GIT_HOST}:${REPO_PATH}.git"
+            GIT_REPO_URL="$DETECTED_URL"
+        fi
+    fi
 fi
 
 if [ -z "$GIT_BRANCH" ] && git rev-parse --abbrev-ref HEAD &>/dev/null; then
@@ -111,19 +138,31 @@ GIT_BRANCH=${GIT_BRANCH:-main}
 if [ -n "$GIT_REPO_URL" ]; then
     echo "Repo: $GIT_REPO_URL"
     echo "Branch: $GIT_BRANCH"
+    ANSIBLE_CMD="$ANSIBLE_CMD -e deploy_app=true"
 else
     echo "No GIT_REPO_URL - app deployment will be skipped"
+    ANSIBLE_CMD="$ANSIBLE_CMD -e deploy_app=false"
 fi
 
 # Pass environment vars to Ansible
 echo -e "\nPassing variables to Ansible"
-for var in DOMAIN_NAME SSL_EMAIL DB_PASSWORD GIT_REPO_URL GIT_BRANCH PROJECT_NAME; do
+
+# Required variables - exit if missing
+for var in DOMAIN_NAME DB_PASSWORD PROJECT_NAME; do
     if [ -n "${!var}" ]; then
         ansible_var=$(echo "$var" | tr '[:upper:]' '[:lower:]')
         ANSIBLE_CMD="$ANSIBLE_CMD -e ${ansible_var}='${!var}'"
     else
         echo "$var - not provided. Update ansible/.env.ansible."
         exit 1
+    fi
+done
+
+# Optional variables - pass if set
+for var in GIT_REPO_URL GIT_BRANCH; do
+    if [ -n "${!var}" ]; then
+        ansible_var=$(echo "$var" | tr '[:upper:]' '[:lower:]')
+        ANSIBLE_CMD="$ANSIBLE_CMD -e ${ansible_var}='${!var}'"
     fi
 done
 

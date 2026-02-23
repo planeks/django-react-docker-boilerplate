@@ -21,11 +21,11 @@ Create `.devcontainer/devcontainer.json` in your project root:
         "ms-python.python",
         "ms-python.vscode-pylance",
         "ms-python.debugpy",
+        "charliermarsh.ruff",
         "ms-azuretools.vscode-docker",
         "batisteo.vscode-django",
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode",
-        "Vue.volar",
         "mtxr.sqltools",
         "mtxr.sqltools-driver-pg",
         "eamodio.gitlens",
@@ -37,9 +37,6 @@ Create `.devcontainer/devcontainer.json` in your project root:
         "python.defaultInterpreterPath": "/opt/project/src/.venv/bin/python",
         "python.terminal.activateEnvironment": true,
         "python.analysis.typeCheckingMode": "basic",
-        "python.linting.enabled": true,
-        "python.linting.flake8Enabled": true,
-        "python.formatting.provider": "black",
         "python.testing.pytestEnabled": true,
         "editor.formatOnSave": true,
         "editor.codeActionsOnSave": {
@@ -253,12 +250,6 @@ Create `.vscode/settings.json`:
   "python.defaultInterpreterPath": "/opt/project/src/.venv/bin/python",
   "python.terminal.activateEnvironment": true,
 
-  "python.linting.enabled": true,
-
-  "python.formatting.blackArgs": [
-    "--line-length=120"
-  ],
-
   "python.testing.pytestEnabled": true,
   "python.testing.pytestArgs": [
     "tests",
@@ -280,7 +271,7 @@ Create `.vscode/settings.json`:
   "editor.insertSpaces": true,
 
   "[python]": {
-    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.defaultFormatter": "charliermarsh.ruff",
     "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
       "source.organizeImports": "explicit"
@@ -560,10 +551,22 @@ Create `.vscode/tasks.json`:
       }
     },
     {
+      "label": "Code Quality: Lint Python",
+      "type": "shell",
+      "command": "${workspaceFolder}/.venv/bin/ruff",
+      "args": [
+        "check",
+        "--fix",
+        "."
+      ],
+      "problemMatcher": []
+    },
+    {
       "label": "Code Quality: Format All Python",
       "type": "shell",
-      "command": "${workspaceFolder}/.venv/bin/black",
+      "command": "${workspaceFolder}/.venv/bin/ruff",
       "args": [
+        "format",
         "."
       ],
       "problemMatcher": []
@@ -853,6 +856,7 @@ Create `.vscode/extensions.json`:
   "recommendations": [
     "ms-python.python",
     "ms-python.vscode-pylance",
+    "charliermarsh.ruff",
     "ms-azuretools.vscode-docker",
     "batisteo.vscode-django",
     "esbenp.prettier-vscode",

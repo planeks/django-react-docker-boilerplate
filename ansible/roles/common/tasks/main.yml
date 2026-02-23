@@ -35,6 +35,7 @@
       - mc
       - nano
       - build-essential
+      - jq
       - ufw
       - fail2ban
       - unattended-upgrades
