@@ -51,7 +51,7 @@ INSTALLED_APPS = [
     "accounts",
 ]
 
-if SENTRY_DSN:
+if SENTRY_DSN and SENTRY_DSN.strip() and SENTRY_DSN.strip().startswith(("http://", "https://")):
     import sentry_sdk
     from sentry_sdk.integrations.celery import CeleryIntegration
     from sentry_sdk.integrations.django import DjangoIntegration

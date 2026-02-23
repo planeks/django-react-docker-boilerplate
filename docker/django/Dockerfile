@@ -84,6 +84,11 @@ RUN sed -i 's/\r$//g' /entrypoint
 RUN chmod +x /entrypoint
 
 
+# Install gosu for step-down from root
+RUN apt-get update && apt-get install -y --no-install-recommends gosu \
+    && rm -rf /var/lib/apt/lists/* \
+    && gosu nobody true
+
 # Setup data directory
 RUN mkdir -p /data \
     && chown -R appuser:appuser /data \
@@ -95,7 +100,6 @@ RUN mkdir -p /data/staticfiles \
     && chown -R appuser:appuser /data/staticfiles \
     && chmod 775 /data/staticfiles
 
-# Switch back to non-root user
-USER appuser
+# Keep container as root, entrypoint will switch to appuser
 WORKDIR /opt/project/src
 ENTRYPOINT ["/entrypoint"]

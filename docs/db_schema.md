@@ -2,4 +2,4 @@
 
 Application database schema
 
-![db](./images/db.png)
+<!-- TODO: Add database schema image at ./images/db.png -->

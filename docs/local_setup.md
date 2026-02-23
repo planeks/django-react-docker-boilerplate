@@ -90,7 +90,7 @@ We specify the following volume in the application container:
 
 > If you use Linux and Docker Engine for the local development you need to
 > setup proper permissions for the volume. It is important if you want to
-> use Docker without `sudo`. Check the `init_production_volumes.sh` script
+> use Docker without `sudo`. Check the `scripts/init_production_volumes.sh` script
 > and the "Deploying the project to the server" section for more details,
 > and adapt it for your needs.
 
