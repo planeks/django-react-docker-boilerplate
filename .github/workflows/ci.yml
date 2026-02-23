@@ -19,13 +19,42 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-# Cancel in-progress runs on the same PR when a new push arrives,
-# so we don't burn Actions minutes on outdated commits
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
+  check_migration_conflicts:
+    name: Check Migration Conflicts
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - id: checkout_branch
+        name: Checkout Branch
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - id: get_added_migrations
+        name: Get Added Migrations
+        run: |
+          ADDED_MIGRATIONS=$(git diff --name-only --diff-filter=A origin/${{ github.event.pull_request.base.ref }}..origin/${{ github.head_ref }} | grep "/migrations/" | sed "s/src\///" | sed "s/migrations\///" | sed "s/\(.*\/.\{4\}\)\(.*\)/\1/")
+          echo "added_migrations<<EOF" >> $GITHUB_OUTPUT
+          echo "$ADDED_MIGRATIONS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - id: checkout_base_branch
+        name: Checkout Base Branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+
+      - id: compare_existing_migrations
+        name: Compare Existing Migrations
+        run: |
+          EXISTING_MIGRATIONS=$(find . -type f -regex '.*\/migrations\/.*' ! -regex '.*pycache.*' | sed "s/.\///" | sed "s/src\///" | sed "s/migrations\///" | sed "s/\(.*\/.\{4\}\)\(.*\)/\1/" | sort -u)
+          ADDED_MIGRATIONS="${{ steps.get_added_migrations.outputs.added_migrations }}"
+          ADDED_MIGRATIONS=$(echo "$ADDED_MIGRATIONS" | tr ' ' '\n' | sort -u)
+          MATCHES=$(diff -u <(echo "$ADDED_MIGRATIONS") <(echo "$EXISTING_MIGRATIONS") | grep '^ ' | wc -l)
+          exit $MATCHES
+
   lint-backend:
     name: Lint Python
     runs-on: ubuntu-latest
@@ -99,8 +128,8 @@ jobs:
     # Skip tests on PRs to develop - lint is enough to save actions minutes.
     # Tests still run for staging/production deploys via workflow_call
     # (github.base_ref is empty for workflow_call, so this condition passes).
-    if: github.base_ref != 'develop'
-    needs: [lint-backend]
+    if: ${{ github.base_ref != 'develop' && !failure() && !cancelled() }}
+    needs: [lint-backend, check_migration_conflicts]
     runs-on: ubuntu-latest
     timeout-minutes: 15 # Docker build can be slow
 
@@ -124,8 +153,8 @@ jobs:
   test-frontend:
     name: Test React Frontend
     # Same as above: skip on develop PRs, run on staging/production
-    if: github.base_ref != 'develop'
-    needs: [lint-frontend]
+    if: ${{ github.base_ref != 'develop' && !failure() && !cancelled() }}
+    needs: [lint-frontend, check_migration_conflicts]
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
