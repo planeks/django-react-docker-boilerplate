@@ -7,7 +7,7 @@ version = "0.1.0"
 [tool.poetry.dependencies]
 celery = "^5.3"
 celery-redbeat = "^2.2"
-cryptography = "^42.0"
+cryptography = "^44.0"
 defusedxml = "^0.7"
 django = "^5.1"
 django-anymail = "^10.2"
