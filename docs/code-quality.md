@@ -2,6 +2,41 @@
 
 This project uses automated linting, formatting, and security scanning across both the Python backend and the React frontend.
 
+## Dependency management
+
+This project uses [Poetry](https://python-poetry.org/) (v1.8.2) to manage Python dependencies.
+All dependencies are declared in `src/pyproject.toml` and locked in `src/poetry.lock`.
+Three dependency groups are defined: **main**, **dev**, and **docs**.
+
+### Adding a dependency
+
+```bash
+$ docker compose -f compose.dev.yml run --rm django add <package>
+```
+
+To pin a specific version:
+
+```bash
+$ docker compose -f compose.dev.yml run --rm django add "django>=5.1,<5.2"
+```
+
+### Updating a dependency
+
+```bash
+$ docker compose -f compose.dev.yml exec django poetry update <package>  # update a specific package
+$ docker compose -f compose.dev.yml exec django poetry update            # update all packages
+$ docker compose -f compose.dev.yml exec django poetry show --outdated   # list outdated packages
+```
+
+### Removing a dependency
+
+```bash
+$ docker compose -f compose.dev.yml exec django poetry remove <package>
+```
+
+> Always commit both `pyproject.toml` and `poetry.lock` after making changes.
+> After adding or removing dependencies, rebuild the Docker image: `docker compose -f compose.dev.yml build django`.
+
 ## Tools
 
 ### Python (backend)
