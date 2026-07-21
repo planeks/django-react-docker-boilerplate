@@ -1,9 +1,8 @@
 {
-  "mcpServers": {
-
-    "sentry-spotlight": {
-      "type": "http",
-      "url": "http://127.0.0.1:8969/mcp"
+    "mcpServers": {
+    "spotlight": {
+      "command": "npx",
+      "args": ["-y", "--prefer-online", "@spotlightjs/spotlight@latest", "mcp"]
     }
   }
 }
