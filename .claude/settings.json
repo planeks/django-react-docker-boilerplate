@@ -1,0 +1,78 @@
+{
+  "env": {
+    "ENABLE_TOOL_SEARCH": "true"
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "figma",
+    "sentry-spotlight"
+  ],
+  "includeCoAuthoredBy": false,
+  "extraKnownMarketplaces": {
+    "claude-plugins-official": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/claude-plugins-official"
+      }
+    }
+  },
+  "permissions": {
+    "allow": [
+      "Bash(docker --version:*)",
+      "Bash(docker compose -f compose.dev.yml config:*)",
+      "Bash(docker compose -f compose.dev.yml ps:*)",
+      "Bash(git branch:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(git show:*)",
+      "Bash(git status:*)",
+      "Bash(grep:*)",
+      "Bash(ls:*)",
+      "Bash(node --version:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run format\\:check:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npm test:*)",
+      "Bash(pre-commit run:*)",
+      "Bash(pwd:*)",
+      "Bash(python --version:*)",
+      "Bash(python3 --version:*)",
+      "Bash(ruff check:*)",
+      "Bash(ruff format --check:*)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./ansible/.env.ansible)",
+      "Read(./backups/**)",
+      "Bash(ansible:*)",
+      "Bash(ansible-playbook:*)",
+      "Bash(docker compose -f compose.prod.yml:*)",
+      "Bash(docker compose * down -v:*)",
+      "Bash(git clean:*)",
+      "Bash(git push --force:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(scripts/backup.sh:*)",
+      "Bash(./scripts/backup.sh:*)",
+      "Bash(bash scripts/backup.sh:*)",
+      "Bash(scripts/deploy.sh:*)",
+      "Bash(./scripts/deploy.sh:*)",
+      "Bash(bash scripts/deploy.sh:*)",
+      "Bash(scripts/init_production_volumes.sh:*)",
+      "Bash(./scripts/init_production_volumes.sh:*)",
+      "Bash(bash scripts/init_production_volumes.sh:*)",
+      "Bash(scripts/provision-server.sh:*)",
+      "Bash(./scripts/provision-server.sh:*)",
+      "Bash(bash scripts/provision-server.sh:*)"
+    ]
+  },
+  "enabledPlugins": {
+    "code-review@claude-plugins-official": true,
+    "code-simplifier@claude-plugins-official": true,
+    "frontend-design@claude-plugins-official": true,
+    "pyright-lsp@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true
+  },
+  "plansDirectory": "./.claude/plans"
+}
