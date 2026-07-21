@@ -4,7 +4,6 @@
   },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
-    "figma",
     "sentry-spotlight"
   ],
   "includeCoAuthoredBy": false,
