@@ -4,7 +4,7 @@
   },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
-    "sentry-spotlight"
+    "spotlight"
   ],
   "includeCoAuthoredBy": false,
   "extraKnownMarketplaces": {
