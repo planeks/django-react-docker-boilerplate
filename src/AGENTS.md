@@ -11,19 +11,46 @@ overrides this one for React code. Full standards: `.claude/CLAUDE_python.md`,
 | apps under `apps/<app>/` | apps at `src/<app>/` | boilerplate layout, keep it |
 | API routes `/api/v1/<app>/` | `/api/…`, no version segment | add versioning when a real external consumer appears |
 | Black + isort + flake8 | **Ruff only** (lint *and* format) | one tool, config in `pyproject.toml` |
+| business logic in `services.py` / `selectors.py` | **no service layer** — logic in DRF views + model managers | that's what `accounts/` does; don't introduce one unilaterally |
+| DRF `ViewSet` + `DefaultRouter` | **generic CBVs + explicit `path()`** | see `accounts/api/router.py` |
 
-## API vs SSR isolation (mandatory)
+## Where code lives
 
-DRF code lives **only** in `src/<app>/api/` — views, serializers, permissions, routers, filters.
-Top-level `views.py` / `forms.py` / `templates/` are the SSR surface. Neither imports the other;
-both call the same `services.py` / `selectors.py`. A `from rest_framework import …` outside
-`api/` is a bug — move it.
+DRF code lives **only** in `src/<app>/api/`: `views.py`, `serializers.py`, `router.py`,
+`tests.py`. A `from rest_framework import …` outside `api/` is a bug — move it.
 
-Business logic goes in `services.py` (writes) and `selectors.py` (reads), not in views,
-serializers, or models. Models hold data and invariants.
+Routing is `config/urls.py` → `<app>/urls.py` → `<app>/api/router.py`, which exposes an
+`api_urlpatterns` list included under a namespace (`accounts_api`). Reverse with
+`reverse("accounts_api:<name>")`.
+
+Layers, as `accounts/` actually does them:
+
+- **Model + manager** (`models.py`) — persistence and domain helpers (`UserManager._create_user`).
+- **Serializer** (`api/serializers.py`) — validation and output shape; `validate()` /
+  `validate_<field>()`. May delegate to the manager in `create()` / `update()`.
+- **View** (`api/views.py`) — orchestration. `generics.CreateAPIView`,
+  `RetrieveUpdateAPIView`, `APIView`. A view may compose several steps (validate, persist,
+  dispatch a task, mint JWT) — see `RegisterView`.
+
+The SSR surface is vestigial: `accounts/views.py` is **empty** and `accounts/urls.py` mounts
+only the API. `forms.py` and `templates/` exist but nothing renders them. Don't describe this
+project as having an active SSR layer; if you add server-rendered pages, keep them out of `api/`.
 
 New app: `… run --rm django manage startapp <name>`, mirror `accounts/` (create `api/` and
 `tests/` from day one), register it in `config/settings/base.py`.
+
+## Permissions — read before adding an endpoint
+
+`REST_FRAMEWORK` in `config/settings/base.py` sets `DEFAULT_AUTHENTICATION_CLASSES` (SimpleJWT)
+but **no `DEFAULT_PERMISSION_CLASSES`**, so DRF falls back to `AllowAny`. A view without an
+explicit `permission_classes` is **public**. Always set it.
+
+There is no object-level ownership layer — if a view returns per-user data, filter the queryset
+by `request.user` yourself.
+
+`accounts/api/permissions.py` is a dead stub: it imports a non-existent `oxygen` package and
+would raise on import. Nothing references it. Don't import from it; delete it or replace it
+when you first need real permission classes.
 
 ## Settings
 

@@ -30,5 +30,13 @@ Read the relevant one when a decision warrants it:
 | `.claude/CLAUDE_react.md` | state management, data fetching, forms, accessibility |
 | `.claude/CLAUDE_architecture.md` | layering, API design, caching, resilience, multi-tenancy |
 
-If a template and an `AGENTS.md` disagree, **the `AGENTS.md` wins** — the deviations are
-documented there with reasons.
+These are generic company-wide standards, not a description of this codebase. If a template and
+an `AGENTS.md` disagree, **the `AGENTS.md` wins** — the deviations are documented there with
+reasons. Two known conflicts worth naming, because following the template would be wrong here:
+
+- `CLAUDE_django.md` prescribes `services.py` / `selectors.py`. This project has **no service
+  layer** — logic lives in DRF views and model managers.
+- `CLAUDE_django.md` prescribes `ViewSet` + `DefaultRouter`. This project uses **generic
+  class-based views + explicit `path()`**.
+
+`CLAUDE_react.md` is TypeScript-first; this frontend is plain JSX. See `src/frontend/AGENTS.md`.

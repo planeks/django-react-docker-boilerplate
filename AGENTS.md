@@ -39,7 +39,11 @@ docker compose -f compose.dev.yml run --rm django test
 docker compose -f compose.dev.yml exec frontend npm run lint
 ```
 
-`run --rm` for one-offs, `exec` when the stack is already up.
+`run --rm` for one-offs, `exec` when the stack is already up — but note the difference:
+**`exec` bypasses the entrypoint and runs as `root`** (the image's final `USER`). The venv is on
+`PATH`, so `exec django ruff check .` works fine. Anything that *writes* into the bind-mounted
+`./src` — `manage makemigrations`, `ruff format` — should go through `run --rm django <verb>`
+instead, or it leaves root-owned files on the host.
 
 ## Services
 
@@ -94,7 +98,9 @@ See `docs/deployment_automated.md`.
 ## Conventions
 
 - **English only** — code, comments, commits, branches, docs. No exceptions.
-- Branches `feature/…` `fix/…` `hotfix/…`; commits conventional, subject ≤ 72 chars.
+- Branches and commits follow `CONTRIBUTING.md`: prefixes `feature/` `bugfix/` `hotfix/`
+  `task/`, lowercase and hyphenated; [Conventional Commits](https://www.conventionalcommits.org/).
+- Don't push, merge, or deploy on the user's behalf.
 - Docs change in the **same** PR as the code that made them stale.
 - Tests accompany every change. Update `README.md` / `docs/` when setup or public API moves.
 - Never commit `.env`, secrets, build artifacts, or commented-out code.
