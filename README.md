@@ -21,6 +21,16 @@ Follow these steps to run the project in VSCode:
 
 Linting, formatting, testing, and dependency scanning are configured for both backend and frontend: [Code quality](docs/code-quality.md)
 
+## AI coding agents
+
+Project rules live in [`AGENTS.md`](AGENTS.md), with nested files for
+[`src/`](src/AGENTS.md) (Django) and [`src/frontend/`](src/frontend/AGENTS.md) (React) —
+agents read the closest one automatically. [`CLAUDE.md`](CLAUDE.md) imports all three for
+Claude Code.
+
+Keep them short: only what an agent can't infer from the code and configs. The full
+company-wide PLANEKS standards are vendored in `.claude/` and read on demand.
+
 ## Deploying the project to the server
 
 - [Automated provisioning with Ansible](docs/deployment_automated.md)

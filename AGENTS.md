@@ -1,50 +1,117 @@
-# Agent instructions
+# AGENTS.md
 
-Permanent context for AI coding agents (Claude Code, OpenAI Codex, and others) working in this repo. Task-specific detail lives in the skills under `.agents/skills/` — read the relevant one before starting; do not duplicate its content here.
+Instructions for AI coding agents working in this repository (PLANEKS
+django-react-docker-boilerplate). Nested `AGENTS.md` files add rules for their subtree —
+`src/` for Django/Python, `src/frontend/` for React. The closest file wins.
 
-## Stack
+## The one rule that breaks everything else
 
-Django 5.1 + DRF (Poetry, Python 3.12) in `src/`; Celery 5.3 + redbeat on Redis; PostgreSQL. React 18 in `src/frontend/` — **plain JavaScript/JSX, no TypeScript** — built with Vite, tested with Vitest. Everything runs in Docker via `compose.dev.yml`. Ruff is the only Python linter/formatter; the frontend uses ESLint + Prettier. There is no typecheck step.
+**Everything runs inside Docker.** Never `pip install`, `npm install`, or `python manage.py`
+on the host — the host has no venv and can't reach Postgres/Redis.
 
-## Main directories
-
-- `src/config/` — settings (`settings/{base,dev,prod,test}.py`), root urls, celery.
-- `src/accounts/` — the one domain app; the reference example for the API pattern (`accounts/api/`).
-- `src/core/` — middleware, management commands.
-- `src/frontend/` — React app; entry `src/frontend/src/index.jsx`.
-- `docs/` — MkDocs. Start with `docs/architecture/repository-map.md`.
-
-## Commands
-
-Bring the stack up first: `cp dev.env .env` (once), then `docker compose -f compose.dev.yml up -d`.
+**There is no `docker-compose.yml` and no Makefile.** Every command needs an explicit
+`-f compose.dev.yml`; omitting it can silently target the prod stack.
 
 ```bash
-# Backend
-docker compose -f compose.dev.yml exec django ruff check .
-docker compose -f compose.dev.yml exec django ruff format --check .
-docker compose -f compose.dev.yml run --rm django test
-docker compose -f compose.dev.yml exec django python manage.py makemigrations
-docker compose -f compose.dev.yml exec django python manage.py migrate
-docker compose -f compose.dev.yml exec django python manage.py spectacular --file schema.yml
-
-# Frontend
-docker compose -f compose.dev.yml exec frontend npm run lint
-docker compose -f compose.dev.yml exec frontend npm run format:check
-docker compose -f compose.dev.yml exec frontend npm test
-docker compose -f compose.dev.yml exec frontend npm run build
-
-# Run the test suite(s) for what the diff touched (lint/format is pre-commit's job)
-scripts/check-changes.sh
+docker compose -f compose.dev.yml build            # after Dockerfile/pyproject/package.json changes
+docker compose -f compose.dev.yml up -d
+docker compose -f compose.dev.yml logs -f django   # or frontend / celeryworker / celerybeat
+docker compose -f compose.dev.yml down -v          # DESTRUCTIVE (wipes the DB) — ask first
 ```
 
-## Working rules
+## The `django` entrypoint
 
-- **Find the nearest similar implementation first.** Follow existing patterns instead of inventing new ones. `src/accounts/api/` is the model for API code. There is no service/selector layer — logic lives in DRF views + model managers. DRF uses generic class-based views + explicit `path()`, not ViewSets.
-- **Verify what you changed.** Lint/format is enforced by pre-commit; run the affected test suite before claiming done (`scripts/check-changes.sh`, or the `verify-change` skill). Never claim a command passed unless it ran.
-- **Generated files policy.** Never hand-edit generated output: Django `migrations/` (regenerate with `makemigrations`), any committed OpenAPI `schema.yml` (regenerate with `spectacular`), the Vite `dist/` bundle. There is no generated frontend API client.
-- **External docs.** Check the installed version (`src/pyproject.toml`, `src/frontend/package.json`) and look for an in-repo example before reaching out. Use Context7 or official docs only for unfamiliar, recently-changed, or version-sensitive APIs, and ask for the specific symbol/topic. Repo conventions beat generic examples. Do not auto-install Context7 or add secrets.
-- Follow `CONTRIBUTING.md`: Conventional Commits, branch prefixes (`feature/`, `bugfix/`, `hotfix/`, `task/`). Do not push, merge, or deploy on the user's behalf.
+`docker/django/entrypoint` dispatches on its first argument and sets the venv, user (`gosu
+appuser`) and settings module for you. **Prefer these verbs over raw `python manage.py`:**
 
-## Skills
+| Verb | Does |
+|---|---|
+| `manage <cmd>` | `python manage.py <cmd>` |
+| `test` | exports `DJANGO_SETTINGS_MODULE=config.settings.test`, runs `pytest` |
+| `add <pkg>` | `poetry add` |
+| `shell` | `manage.py shell` |
+| `dev` / `prod` | migrate + runserver / migrate + collectstatic + gunicorn |
+| `celery` / `celery-dev` / `bash` / `python` | as named |
 
-Read the matching skill in `.agents/skills/` before the work: `django-backend`, `react-frontend`, `api-contract-change`, `verify-change`, `write-project-docs`, `context-efficient-work`, `concise-engineering-output`, `systematic-debugging`. See `.agents/skills/README.md` for the index. Claude Code loads them from `.claude/skills/` (symlinks to `.agents/skills/`).
+```bash
+docker compose -f compose.dev.yml run --rm django manage makemigrations
+docker compose -f compose.dev.yml run --rm django test
+docker compose -f compose.dev.yml exec frontend npm run lint
+```
+
+`run --rm` for one-offs, `exec` when the stack is already up — but note the difference:
+**`exec` bypasses the entrypoint and runs as `root`** (the image's final `USER`). The venv is on
+`PATH`, so `exec django ruff check .` works fine. Anything that *writes* into the bind-mounted
+`./src` — `manage makemigrations`, `ruff format` — should go through `run --rm django <verb>`
+instead, or it leaves root-owned files on the host.
+
+## Services
+
+`django` :8000 · `frontend` (Vite) :5173 · `flower` :5555 · `mailhog` :8025 · `mkdocs` :8050 ·
+`celeryworker` · `celerybeat` · `redis` · `postgres` · `caddy` :80/443 (profile `dev`, off by
+default). Full definitions: `compose.dev.yml` / `compose.prod.yml`.
+
+`./src` is bind-mounted to `/opt/project/src` — **edit on the host**, never inside the container.
+
+## Layout
+
+```
+src/config/     settings/{base,dev,prod,test}.py, urls.py, celery.py
+src/accounts/   custom User (AUTH_USER_MODEL) — copy this app's shape for new apps
+src/core/       IndexView, middleware, management commands
+src/frontend/   Django app AND the React/Vite project (see its own AGENTS.md)
+docker/ scripts/ ansible/ docs/
+```
+
+Routes: `/` SPA shell · `/superadmin/` · `/api/token/` + `/api/token/refresh/` (JWT) ·
+`/api/schema/` · `/api/docs/` · `/api/redoc/` · `/__debug__/` (dev only).
+
+## Configuration
+
+`dev.env` and `prod.env` are committed **templates**; the real file is `.env` (gitignored).
+Never put a secret in the templates. New env var → add a placeholder to **both** templates,
+read it via `python-decouple` in `src/config/settings/base.py` with a safe default, document
+it in `docs/`.
+
+A fresh clone needs `cp dev.env .env`, a fresh `SECRET_KEY`, `COMPOSE_PROJECT_NAME`, an
+`/etc/hosts` entry matching `SITE_URL`, and the `NEWPROJECTNAME` placeholder replaced repo-wide.
+
+## Quality gates
+
+Configs are the source of truth — read them rather than trusting a summary here:
+`src/pyproject.toml` (Ruff), `src/frontend/eslint.config.js`, `src/frontend/.prettierrc`,
+`.pre-commit-config.yaml`, `.github/workflows/ci.yml`.
+
+CI on PRs to `develop`/`staging`/`main`: migration-conflict check, `lint-backend`,
+`lint-frontend`, `test-backend`, `test-frontend` (the two test jobs are skipped for PRs
+targeting `develop`). Don't bypass CI or pre-commit — fix the cause. No `--no-verify`.
+
+> Known drift: `.pre-commit-config.yaml` pins ruff `v0.15.1`, `pyproject.toml` pins `^0.6.7`.
+> If the hook and the container disagree on formatting, that's why — report it, don't `# noqa` it.
+
+## Deploys
+
+`develop` → dev (no CI gate) · `staging` → CI then prod compose · `main` → manual approval + CI.
+All via `scripts/deploy.sh` over SSH from CI — **never run a deploy from a laptop**.
+See `docs/deployment_automated.md`.
+
+## Conventions
+
+- **English only** — code, comments, commits, branches, docs. No exceptions.
+- Branches and commits follow `CONTRIBUTING.md`: prefixes `feature/` `bugfix/` `hotfix/`
+  `task/`, lowercase and hyphenated; [Conventional Commits](https://www.conventionalcommits.org/).
+- Don't push, merge, or deploy on the user's behalf.
+- Docs change in the **same** PR as the code that made them stale.
+- Tests accompany every change. Update `README.md` / `docs/` when setup or public API moves.
+- Never commit `.env`, secrets, build artifacts, or commented-out code.
+
+## Full standards
+
+The complete PLANEKS standards are vendored in `.claude/` — `CLAUDE_base.md`,
+`CLAUDE_python.md`, `CLAUDE_django.md`, `CLAUDE_react.md`, `CLAUDE_architecture.md`.
+They cover error handling, docstrings, API design, caching, resilience and security in depth.
+**Read the relevant one before a design decision** (new app, new endpoint, caching, background
+work); the summaries in these `AGENTS.md` files are deliberately partial.
+
+Where a template and this repo disagree, **this repo wins** — the deviations are listed in the
+nested `AGENTS.md` files.
