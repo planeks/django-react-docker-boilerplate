@@ -21,6 +21,10 @@ Follow these steps to run the project in VSCode:
 
 Linting, formatting, testing, and dependency scanning are configured for both backend and frontend: [Code quality](docs/code-quality.md)
 
+## AI coding agents
+
+Shared agent setup (skills, plugins, permissions, status line) ships with the repo: [AI agents](docs/ai-agents.md)
+
 ## Deploying the project to the server
 
 - [Automated provisioning with Ansible](docs/deployment_automated.md)
