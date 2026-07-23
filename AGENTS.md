@@ -33,14 +33,14 @@ docker compose -f compose.dev.yml exec frontend npm run format:check
 docker compose -f compose.dev.yml exec frontend npm test
 docker compose -f compose.dev.yml exec frontend npm run build
 
-# Narrowest sufficient checks for the current diff
+# Run the test suite(s) for what the diff touched (lint/format is pre-commit's job)
 scripts/check-changes.sh
 ```
 
 ## Working rules
 
 - **Find the nearest similar implementation first.** Follow existing patterns instead of inventing new ones. `src/accounts/api/` is the model for API code. There is no service/selector layer — logic lives in DRF views + model managers. DRF uses generic class-based views + explicit `path()`, not ViewSets.
-- **Narrowest sufficient verification.** Match checks to what changed; run focused tests before the full suite (`scripts/check-changes.sh`, or the `verify-change` skill). Never claim a command passed unless it ran.
+- **Verify what you changed.** Lint/format is enforced by pre-commit; run the affected test suite before claiming done (`scripts/check-changes.sh`, or the `verify-change` skill). Never claim a command passed unless it ran.
 - **Generated files policy.** Never hand-edit generated output: Django `migrations/` (regenerate with `makemigrations`), any committed OpenAPI `schema.yml` (regenerate with `spectacular`), the Vite `dist/` bundle. There is no generated frontend API client.
 - **External docs.** Check the installed version (`src/pyproject.toml`, `src/frontend/package.json`) and look for an in-repo example before reaching out. Use Context7 or official docs only for unfamiliar, recently-changed, or version-sensitive APIs, and ask for the specific symbol/topic. Repo conventions beat generic examples. Do not auto-install Context7 or add secrets.
 - Follow `CONTRIBUTING.md`: Conventional Commits, branch prefixes (`feature/`, `bugfix/`, `hotfix/`, `task/`). Do not push, merge, or deploy on the user's behalf.

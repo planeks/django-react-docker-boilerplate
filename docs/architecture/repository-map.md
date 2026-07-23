@@ -40,8 +40,12 @@ A compact orientation for finding code fast. For the running-container view, see
 
 ## Key dependencies
 
-Backend: Django 5.1, DRF 3.15, drf-spectacular, djangorestframework-simplejwt, Celery 5.3 + celery-redbeat, psycopg2, sentry-sdk. Declared in `src/pyproject.toml` (Poetry).
-Frontend: React 18, Vite 5, Vitest 2, react-i18next, @sentry/react, FontAwesome. Declared in `src/frontend/package.json` (npm). Plain JavaScript/JSX — no TypeScript.
+The manifests are the source of truth — read them for exact packages and versions rather than
+trusting a copy here: `src/pyproject.toml` (backend, Poetry) and `src/frontend/package.json`
+(frontend, npm). The stack in one line is at the top of `AGENTS.md`.
+
+The one fact worth stating outright, because it's a design choice and not a version: the frontend
+is **plain JavaScript/JSX — no TypeScript, no typecheck step**.
 
 ## Conventions cheat sheet
 

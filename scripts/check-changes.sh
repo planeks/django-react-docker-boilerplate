@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
 #
-# check-changes.sh — run the narrowest sufficient checks for the current change.
+# check-changes.sh — run the tests for what changed, in Docker.
 #
-# Dev tooling (NOT an ops/deploy script). It wraps the documented
-# `docker compose -f compose.dev.yml ...` commands from docs/code-quality.md;
-# it does not reimplement lint/test logic. See the `verify-change` skill.
+# Dev tooling (NOT an ops/deploy script). Lint and format are pre-commit's job
+# (ruff, eslint, prettier — see .pre-commit-config.yaml); this only runs the
+# test suites, scoped to whichever side of the codebase you touched, so you
+# don't run the full backend+frontend for a one-line change. See the
+# `verify-change` skill.
 #
 # Usage:
-#   scripts/check-changes.sh                # check the working-tree diff
-#   scripts/check-changes.sh --base main    # check everything since <ref>
-#   scripts/check-changes.sh --all          # full backend + frontend suite
+#   scripts/check-changes.sh                # test the working-tree diff
+#   scripts/check-changes.sh --base main    # test everything since <ref>
+#   scripts/check-changes.sh --all          # backend + frontend suites
 #   scripts/check-changes.sh --help
 #
-# Exit code: non-zero if any check that actually ran failed.
+# Exit code: non-zero if any suite that actually ran failed.
 
 set -euo pipefail
 
@@ -20,7 +22,7 @@ COMPOSE="docker compose -f compose.dev.yml"
 BASE=""
 RUN_ALL=0
 
-usage() { sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; exit 0; }
+usage() { sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0; }
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -54,7 +56,7 @@ run() { # run "<label>" <cmd...>
 
 # --- preflight: docker + containers -----------------------------------------
 if ! docker info >/dev/null 2>&1; then
-  echo "Docker is not available — cannot run containerized checks." >&2
+  echo "Docker is not available — cannot run containerized tests." >&2
   echo "Start Docker and the stack: $COMPOSE up -d" >&2
   exit 2
 fi
@@ -81,14 +83,18 @@ migration_changed=0
 while IFS= read -r f; do
   [ -z "$f" ] && continue
   case "$f" in
-    src/frontend/*)           frontend_changed=1 ;;
-    src/*/migrations/*.py)    migration_changed=1; backend_changed=1 ;;
+    # Python anywhere under src/ — including src/frontend/*.py (the Django app:
+    # templatetags, views) — is backend, tested by `django test`. Match this
+    # before the src/frontend/* catch-all below.
+    src/*/migrations/*.py) migration_changed=1; backend_changed=1 ;;
     src/*.py|src/*/*.py|src/*/*/*.py|src/*/*/*/*.py)
       backend_changed=1
       case "$f" in
         */api/*|*serializers*|*/views.py|*/urls.py) api_changed=1 ;;
       esac
       ;;
+    # Everything else under src/frontend/ is the React app, tested by vitest.
+    src/frontend/*) frontend_changed=1 ;;
   esac
 done <<< "$changed"
 
@@ -98,7 +104,7 @@ fi
 
 echo "== check-changes =="
 if [ "$RUN_ALL" -eq 1 ]; then
-  echo "mode: --all (full suite)"
+  echo "mode: --all (both suites)"
 else
   echo "changed files:"; printf '%s\n' "$changed" | sed 's/^/  /'
 fi
@@ -107,33 +113,30 @@ echo
 # --- backend -----------------------------------------------------------------
 if [ "$backend_changed" -eq 1 ]; then
   if [ "$django_up" -eq 1 ]; then
-    run "backend: ruff check"        $COMPOSE exec -T django ruff check .
-    run "backend: ruff format check" $COMPOSE exec -T django ruff format --check .
-    run "backend: django test"       $COMPOSE run --rm django test
+    run "backend: django test" $COMPOSE run --rm django test
   else
-    note_skip "backend checks — django container not running ($COMPOSE up -d)"
+    note_skip "backend tests — django container not running ($COMPOSE up -d)"
   fi
 else
-  note_skip "backend checks — no backend files changed"
+  note_skip "backend tests — no backend files changed"
 fi
 
 if [ "$api_changed" -eq 1 ]; then
   note_skip "API contract touched — regenerate schema and follow api-contract-change (not run automatically)"
 fi
 if [ "$migration_changed" -eq 1 ]; then
-  note_skip "migration changed — confirm it applies on a fresh DB ($COMPOSE exec django python manage.py migrate)"
+  note_skip "migration changed — confirm it applies on a fresh DB ($COMPOSE run --rm django manage migrate)"
 fi
 
 # --- frontend ----------------------------------------------------------------
 if [ "$frontend_changed" -eq 1 ]; then
   if [ "$frontend_up" -eq 1 ]; then
-    run "frontend: eslint" $COMPOSE exec -T frontend npm run lint
     run "frontend: vitest" $COMPOSE exec -T frontend npm test
   else
-    note_skip "frontend checks — frontend container not running ($COMPOSE up -d)"
+    note_skip "frontend tests — frontend container not running ($COMPOSE up -d)"
   fi
 else
-  note_skip "frontend checks — no frontend files changed"
+  note_skip "frontend tests — no frontend files changed"
 fi
 
 # --- summary -----------------------------------------------------------------
@@ -151,8 +154,8 @@ fi
 
 if [ "$failures" -gt 0 ]; then
   echo
-  echo "RESULT: $failures check(s) failed."
+  echo "RESULT: $failures suite(s) failed."
   exit 1
 fi
 echo
-echo "RESULT: all checks that ran passed."
+echo "RESULT: all suites that ran passed. Lint/format is enforced separately by pre-commit."
