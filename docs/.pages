@@ -13,6 +13,7 @@ nav:
 - 'Backups': 'backup.md'
 - 'Code quality': 'code-quality.md'
 - 'AI agents': 'ai-agents.md'
+- 'Architecture': architecture
 - 'App': app
 - 'Development plan': development_plan
 - 'External services': external_services

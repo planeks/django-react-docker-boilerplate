@@ -105,6 +105,14 @@ See `docs/deployment_automated.md`.
 - Tests accompany every change. Update `README.md` / `docs/` when setup or public API moves.
 - Never commit `.env`, secrets, build artifacts, or commented-out code.
 
+## Skills
+
+Task-specific procedures live as skills in `.agents/skills/` (Claude Code loads them from the
+`.claude/skills` symlink; Codex and others read `.agents/skills/` directly). **Read the matching
+skill before the work** — e.g. `django-backend`, `react-frontend`, `api-contract-change`,
+`verify-change`, `django-migrations`, `docker-services`, `lint-fix`, `run-tests`. See
+`.agents/skills/README.md` for the full index.
+
 ## Full standards
 
 The complete PLANEKS standards are vendored in `.claude/` — `CLAUDE_base.md`,
