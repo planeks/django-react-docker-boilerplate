@@ -23,6 +23,7 @@ Linting, formatting, testing, and dependency scanning are configured for both ba
 
 ## AI coding agents
 
+Shared agent setup (skills, plugins, permissions, status line) ships with the repo: [AI agents](docs/ai-agents.md)
 Project rules live in [`AGENTS.md`](AGENTS.md), with nested files for
 [`src/`](src/AGENTS.md) (Django) and [`src/frontend/`](src/frontend/AGENTS.md) (React) —
 agents read the closest one automatically. [`CLAUDE.md`](CLAUDE.md) imports all three for

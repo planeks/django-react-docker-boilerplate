@@ -29,3 +29,5 @@ ansible/ansible.log
 .pytest_cache/
 node_modules/
 src/frontend/dist/
+.claude/settings.local.json
+.claude/worktrees/

@@ -12,6 +12,7 @@ nav:
 - 'SSH key setup': 'ssh-key-setup.md'
 - 'Backups': 'backup.md'
 - 'Code quality': 'code-quality.md'
+- 'AI agents': 'ai-agents.md'
 - 'Architecture': architecture
 - 'App': app
 - 'Development plan': development_plan
