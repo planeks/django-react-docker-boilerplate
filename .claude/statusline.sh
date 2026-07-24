@@ -129,15 +129,24 @@ elif [ "${seven_day_pct:-0}" -ge 70 ]; then
     advice=$(advice_segment "$yellow" "weekly window filling")
 fi
 
-# Caveman plugin keeps its level in this flag file; absent or "off" means inactive.
-caveman_flag="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/.caveman-active"
-caveman=""
-if [ -f "$caveman_flag" ]; then
-    level=$(cat "$caveman_flag")
-    if [ -n "$level" ] && [ "$level" != "off" ]; then
-        caveman=$(printf ' %b|%b %bcaveman:%s%b' "$dim" "$reset" "$orange" "$level" "$reset")
-    fi
+# Caveman level. The caveman-session-flag.sh hook keeps a per-session flag;
+# the plugin's global flag is the fallback for sessions started before the
+# hook was installed. Unknown or "off" content means inactive.
+caveman_dir="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+session_id=$(echo "$input" | jq -r '.session_id // empty')
+level=""
+if [ -n "$session_id" ] && [ -f "$caveman_dir/.caveman-session-$session_id" ]; then
+    level=$(head -c 64 "$caveman_dir/.caveman-session-$session_id")
+elif [ -f "$caveman_dir/.caveman-active" ]; then
+    level=$(head -c 64 "$caveman_dir/.caveman-active")
 fi
+
+caveman=""
+case "$level" in
+    lite|full|ultra|wenyan|wenyan-lite|wenyan-full|wenyan-ultra|commit|review|compress)
+        caveman=$(printf ' %b|%b %bcaveman:%s%b' "$dim" "$reset" "$orange" "$level" "$reset")
+        ;;
+esac
 
 printf '%b[%s]%b %b%s%b %b|%b ctx %b%s%%%b %b(%s/%s)%b%s%s%s\n' \
     "$cyan" "$model" "$reset" \
