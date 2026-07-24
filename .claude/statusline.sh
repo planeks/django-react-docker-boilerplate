@@ -24,6 +24,8 @@ cyan='\033[1;36m'
 blue='\033[34m'
 dim='\033[2m'
 orange='\033[38;5;208m'
+red='\033[31m'
+yellow='\033[33m'
 reset='\033[0m'
 
 # Context number: green under 60%, yellow under 85%, red above.
@@ -38,11 +40,29 @@ fi
 # Rate-limit usage only arrives on Pro/Max subscription sessions.
 five_hour_pct=$(echo "$input" | jq -r '.rate_limits.five_hour.used_percentage // empty | floor')
 seven_day_pct=$(echo "$input" | jq -r '.rate_limits.seven_day.used_percentage // empty | floor')
+five_hour_reset=$(echo "$input" | jq -r '.rate_limits.five_hour.resets_at // empty')
+seven_day_reset=$(echo "$input" | jq -r '.rate_limits.seven_day.resets_at // empty')
 
-# Dim label, then gauge glyph and percent colored like the ctx number.
+# Time until an epoch timestamp, shortest form that still reads: 18m, 4h32m, 3d.
+until_reset() {
+    diff=$(( $1 - $(date +%s) ))
+    if [ "$diff" -le 0 ]; then
+        printf 'now'
+    elif [ "$diff" -ge 86400 ]; then
+        printf '%dd' "$(( diff / 86400 ))"
+    elif [ "$diff" -ge 3600 ]; then
+        printf '%dh%02dm' "$(( diff / 3600 ))" "$(( diff % 3600 / 60 ))"
+    else
+        printf '%dm' "$(( diff / 60 ))"
+    fi
+}
+
+# Dim label, 5-cell bar and percent colored like the ctx number,
+# then dim time until the window resets.
 usage_segment() {
     seg_pct=$1
     seg_label=$2
+    seg_reset=$3
 
     if [ "$seg_pct" -ge 85 ]; then
         seg_color='\033[31m'
@@ -52,29 +72,61 @@ usage_segment() {
         seg_color='\033[32m'
     fi
 
-    case $(( seg_pct / 13 )) in
-        0) seg_glyph="▁";;
-        1) seg_glyph="▂";;
-        2) seg_glyph="▃";;
-        3) seg_glyph="▄";;
-        4) seg_glyph="▅";;
-        5) seg_glyph="▆";;
-        6) seg_glyph="▇";;
-        *) seg_glyph="█";;
-    esac
+    # One cell per 20%, rounded; any nonzero usage lights at least one cell.
+    seg_filled=$(( (seg_pct + 10) / 20 ))
+    [ "$seg_filled" -gt 5 ] && seg_filled=5
+    [ "$seg_filled" -eq 0 ] && [ "$seg_pct" -gt 0 ] && seg_filled=1
 
-    printf ' %b%s%b %b%s %s%%%b' "$dim" "$seg_label" "$reset" "$seg_color" "$seg_glyph" "$seg_pct" "$reset"
+    seg_bar=""
+    seg_i=0
+    while [ "$seg_i" -lt 5 ]; do
+        if [ "$seg_i" -lt "$seg_filled" ]; then
+            seg_bar="${seg_bar}▰"
+        else
+            seg_bar="${seg_bar}▱"
+        fi
+        seg_i=$(( seg_i + 1 ))
+    done
+
+    seg_countdown=""
+    if [ -n "$seg_reset" ]; then
+        seg_countdown=$(printf ' %b(%s)%b' "$dim" "$(until_reset "$seg_reset")" "$reset")
+    fi
+
+    printf '%b%s%b %b%s %s%%%b%s' "$dim" "$seg_label" "$reset" "$seg_color" "$seg_bar" "$seg_pct" "$reset" "$seg_countdown"
 }
 
 usage=""
 if [ -n "$five_hour_pct" ]; then
-    usage="$usage$(usage_segment "$five_hour_pct" "5h")"
+    usage=" $(usage_segment "$five_hour_pct" "5h" "$five_hour_reset")"
 fi
 if [ -n "$seven_day_pct" ]; then
-    usage="$usage$(usage_segment "$seven_day_pct" "7d")"
+    [ -n "$usage" ] && usage="$usage$(printf ' %b·%b' "$dim" "$reset")"
+    usage="$usage $(usage_segment "$seven_day_pct" "7d" "$seven_day_reset")"
 fi
 if [ -n "$usage" ]; then
     usage=$(printf ' %b|%b%s' "$dim" "$reset" "$usage")
+fi
+
+# One short nudge at the end of the line. Most urgent condition wins,
+# nothing shows while everything is calm.
+advice_segment() {
+    printf ' %b|%b %b%s%b' "$dim" "$reset" "$1" "$2" "$reset"
+}
+
+advice=""
+if [ "$context_pct" -ge 85 ]; then
+    advice=$(advice_segment "$red" "⚠ /compact now")
+elif [ "${five_hour_pct:-0}" -ge 85 ]; then
+    advice=$(advice_segment "$red" "⚠ 5h limit near, pause soon")
+elif [ "${seven_day_pct:-0}" -ge 85 ]; then
+    advice=$(advice_segment "$red" "⚠ weekly limit near")
+elif [ "$context_pct" -ge 70 ]; then
+    advice=$(advice_segment "$yellow" "/compact soon, or /clear for new task")
+elif [ "${five_hour_pct:-0}" -ge 70 ]; then
+    advice=$(advice_segment "$yellow" "5h window filling, batch your asks")
+elif [ "${seven_day_pct:-0}" -ge 70 ]; then
+    advice=$(advice_segment "$yellow" "weekly window filling")
 fi
 
 # Caveman plugin keeps its level in this flag file; absent or "off" means inactive.
@@ -87,10 +139,10 @@ if [ -f "$caveman_flag" ]; then
     fi
 fi
 
-printf '%b[%s]%b %b%s%b %b|%b ctx %b%s%%%b %b(%s/%s)%b%s%s\n' \
+printf '%b[%s]%b %b%s%b %b|%b ctx %b%s%%%b %b(%s/%s)%b%s%s%s\n' \
     "$cyan" "$model" "$reset" \
     "$blue" "${branch:-no branch}" "$reset" \
     "$dim" "$reset" \
     "$pct_color" "$context_pct" "$reset" \
     "$dim" "$(humanize "$used_tokens")" "$(humanize "$max_tokens")" "$reset" \
-    "$usage" "$caveman"
+    "$usage" "$caveman" "$advice"
