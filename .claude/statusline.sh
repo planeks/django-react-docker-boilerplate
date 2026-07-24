@@ -35,6 +35,48 @@ else
     pct_color='\033[32m'
 fi
 
+# Rate-limit usage only arrives on Pro/Max subscription sessions.
+five_hour_pct=$(echo "$input" | jq -r '.rate_limits.five_hour.used_percentage // empty | floor')
+seven_day_pct=$(echo "$input" | jq -r '.rate_limits.seven_day.used_percentage // empty | floor')
+
+# Dim label, then gauge glyph and percent colored like the ctx number.
+usage_segment() {
+    seg_pct=$1
+    seg_label=$2
+
+    if [ "$seg_pct" -ge 85 ]; then
+        seg_color='\033[31m'
+    elif [ "$seg_pct" -ge 60 ]; then
+        seg_color='\033[33m'
+    else
+        seg_color='\033[32m'
+    fi
+
+    case $(( seg_pct / 13 )) in
+        0) seg_glyph="▁";;
+        1) seg_glyph="▂";;
+        2) seg_glyph="▃";;
+        3) seg_glyph="▄";;
+        4) seg_glyph="▅";;
+        5) seg_glyph="▆";;
+        6) seg_glyph="▇";;
+        *) seg_glyph="█";;
+    esac
+
+    printf ' %b%s%b %b%s %s%%%b' "$dim" "$seg_label" "$reset" "$seg_color" "$seg_glyph" "$seg_pct" "$reset"
+}
+
+usage=""
+if [ -n "$five_hour_pct" ]; then
+    usage="$usage$(usage_segment "$five_hour_pct" "5h")"
+fi
+if [ -n "$seven_day_pct" ]; then
+    usage="$usage$(usage_segment "$seven_day_pct" "7d")"
+fi
+if [ -n "$usage" ]; then
+    usage=$(printf ' %b|%b%s' "$dim" "$reset" "$usage")
+fi
+
 # Caveman plugin keeps its level in this flag file; absent or "off" means inactive.
 caveman_flag="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/.caveman-active"
 caveman=""
@@ -45,10 +87,10 @@ if [ -f "$caveman_flag" ]; then
     fi
 fi
 
-printf '%b[%s]%b %b%s%b %b|%b ctx %b%s%%%b %b(%s/%s)%b%s\n' \
+printf '%b[%s]%b %b%s%b %b|%b ctx %b%s%%%b %b(%s/%s)%b%s%s\n' \
     "$cyan" "$model" "$reset" \
     "$blue" "${branch:-no branch}" "$reset" \
     "$dim" "$reset" \
     "$pct_color" "$context_pct" "$reset" \
     "$dim" "$(humanize "$used_tokens")" "$(humanize "$max_tokens")" "$reset" \
-    "$caveman"
+    "$usage" "$caveman"
