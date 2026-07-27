@@ -65,6 +65,16 @@ script on every render, piping session JSON (model, tokens, workspace) to its
 stdin and displaying whatever the script prints. The only requirement is `jq`
 (`sudo apt install jq` / `brew install jq`).
 
+*Caveman badge is per-session.* The caveman plugin tracks its level in one
+global flag file, so two parallel sessions would show each other's level. The
+`SessionStart` and `UserPromptSubmit` hooks in `.claude/settings.json` run
+`.claude/hooks/caveman-session-flag.sh`, which keeps a flag per session id
+(`~/.claude/.caveman-session-<id>`). The status line prefers that flag and
+falls back to the plugin's global one. Note the plugin itself still reads the
+global flag for its per-turn prompt reinforcement, so with parallel sessions
+at different levels the model in the other session may drift; the badge stays
+correct.
+
 *Debugging.* If the line does not appear:
 
 1. Run the script by hand with mock input — it must print one line:

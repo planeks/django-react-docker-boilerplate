@@ -67,6 +67,7 @@ exclude = [
 select = ["ALL"]
 ignore = [
   "D",      # docstring rules - Django classes/methods are self-documenting by convention
+  "CPY",    # copyright notices - boilerplate project, downstream users add their own
   "ANN",    # type annotations - not enforced in this project
   "EM101",  # string literal in exception - Django idiom, extracting to variable hurts readability
   "TRY003", # long exception messages - same as above
