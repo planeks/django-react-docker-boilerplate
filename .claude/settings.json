@@ -2,9 +2,7 @@
   "env": {
     "ENABLE_TOOL_SEARCH": "true"
   },
-  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
-    "sentry-spotlight",
     "spotlight"
   ],
   "includeCoAuthoredBy": false,
