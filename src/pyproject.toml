@@ -45,7 +45,7 @@ freezegun = "^1.4"
 markdown-urlize = "^0.2"
 pytest = "^7.4"
 pytest-django = "^4.11.0"
-ruff = "^0.6.7"
+ruff = "^0.15.2"
 
 [tool.poetry.group.docs.dependencies]
 mkdocs = "^1.6"
